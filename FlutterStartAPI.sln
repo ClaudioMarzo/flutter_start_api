@@ -1,0 +1,39 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlutterStart.Application", "FlutterStart.Application\FlutterStart.Application.csproj", "{DF69A7EC-8692-4818-8A9A-9157E01DED47}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlutterStart.Apresentation", "FlutterStart.Apresentation\FlutterStart.Apresentation.csproj", "{115092DA-B26C-4D10-B874-8693F6189DFC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlutterStart.Domain", "FlutterStart.Domain\FlutterStart.Domain.csproj", "{69BCDD63-3974-492A-84D8-EB9487B72A11}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlutterStart.Infrastructure", "FlutterStart.Infrastructure\FlutterStart.Infrastructure.csproj", "{B305F94A-77E4-4BD7-B944-88791014E77E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DF69A7EC-8692-4818-8A9A-9157E01DED47}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DF69A7EC-8692-4818-8A9A-9157E01DED47}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DF69A7EC-8692-4818-8A9A-9157E01DED47}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DF69A7EC-8692-4818-8A9A-9157E01DED47}.Release|Any CPU.Build.0 = Release|Any CPU
+		{115092DA-B26C-4D10-B874-8693F6189DFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{115092DA-B26C-4D10-B874-8693F6189DFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{115092DA-B26C-4D10-B874-8693F6189DFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{115092DA-B26C-4D10-B874-8693F6189DFC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69BCDD63-3974-492A-84D8-EB9487B72A11}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69BCDD63-3974-492A-84D8-EB9487B72A11}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69BCDD63-3974-492A-84D8-EB9487B72A11}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69BCDD63-3974-492A-84D8-EB9487B72A11}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B305F94A-77E4-4BD7-B944-88791014E77E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B305F94A-77E4-4BD7-B944-88791014E77E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B305F94A-77E4-4BD7-B944-88791014E77E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B305F94A-77E4-4BD7-B944-88791014E77E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
