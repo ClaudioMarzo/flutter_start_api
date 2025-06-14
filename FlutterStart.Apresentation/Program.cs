@@ -18,6 +18,7 @@ void configDependencyInjection(WebApplicationBuilder builder)
 {
     builder.Services.AddScoped<IProcessRunner, ProcessRunner>();
     builder.Services.AddScoped<IUrlConversionService, UrlConversionService>();
+    builder.Services.AddHostedService<DownloadCleanupService>();
 }
 
 var app = builder.Build();
