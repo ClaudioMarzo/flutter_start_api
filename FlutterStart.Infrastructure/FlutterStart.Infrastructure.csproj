@@ -2,10 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FlutterStart.Domain\FlutterStart.Domain.csproj" />
-    <ProjectReference Include="..\FlutterStart.Application\FlutterStart.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.6" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.6" />
   </ItemGroup>

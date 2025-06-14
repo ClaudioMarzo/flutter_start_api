@@ -32,7 +32,7 @@
 
 * **.NET 8 (C# / ASP.NET Core)**
 * **PostgreSQL**
-* **yt‑dlp** (download/conversão)
+* **yt‑dlp** (download/conversão) (linux - installar ffmpeg para converter mp4 para mp3)
 * **Docker Compose**
 
 
