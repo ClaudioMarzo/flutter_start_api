@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  flutter_start_database:
+    image: postgres
+    container_name: flutter_start_database
+    restart: always
+    environment:
+      POSTGRES_DB: FlutterStart
+      POSTGRES_USER: flutter
+      POSTGRES_PASSWORD: FlutterStart2025
+    ports:
+      - "8486:5432"
+    volumes:
+      - flutter_start_database:/var/lib/postgresql/data
+
+
+volumes:
+  flutter_start_database:

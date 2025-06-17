@@ -30,7 +30,7 @@ update_migration:
 	dotnet ef database update --startup-project $(STARTUP_FOLDER) --project $(INFRA_FOLDER)
 
 up_dev_db:
-	docker compose up -d viber_lounge_database
+	docker compose up -d flutter_start_database
 
 up_dev_api:
-	docker compose -f docker-compose.yml up -d viber_lounge_api
+	docker compose -f docker-compose.yml up -d flutter_start_api
