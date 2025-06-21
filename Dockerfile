@@ -17,9 +17,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
 # Incluir só se precisa de yt-dlp/ffmpeg
-RUN apt-get update && apt-get install -y python3 python3-pip ffmpeg && \
-    pip3 install yt-dlp && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip ffmpeg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /app/downloads && chmod 777 /app/downloads
 
