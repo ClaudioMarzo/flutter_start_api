@@ -36,28 +36,3 @@ up_dev_db:
 
 up_dev_api:
 	docker compose -f docker-compose.yml up -d flutter_start_api
-
-# ====================
-# Comandos Docker atualizados
-# Variáveis para Docker
-IMAGE_NAME=flutterstartapi
-CONTAINER_NAME=flutterstartapi-container
-HOST_PORT=8080
-CONTAINER_PORT=80
-
-# Build da imagem Docker
-build_docker:
-    docker build -t $(IMAGE_NAME):latest .
-
-# Roda o container Docker mapeando a porta
-run_docker:
-    docker run -d -p $(HOST_PORT):$(CONTAINER_PORT) --name $(CONTAINER_NAME) $(IMAGE_NAME):latest
-
-# Para + remove o container caso esteja rodando
-stop_docker:
-    -docker stop $(CONTAINER_NAME)
-    -docker rm $(CONTAINER_NAME)
-
-# Para container, rebuild da imagem, e roda novamente
-restart_docker: 
-	stop_docker build_docker run_docker

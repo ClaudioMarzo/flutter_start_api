@@ -1,7 +1,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-## copiar csproj e sln para cache melhor
 COPY *.sln ./
 COPY FlutterStart.Apresentation/*.csproj ./FlutterStart.Apresentation/
 COPY FlutterStart.Application/*.csproj ./FlutterStart.Application/
@@ -16,7 +15,6 @@ RUN dotnet publish ./FlutterStart.Apresentation/FlutterStart.Apresentation.cspro
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
-# Incluir só se precisa de yt-dlp/ffmpeg
 RUN apt-get update && \
     apt-get install -y python3 python3-pip ffmpeg && \
     apt-get clean && \
@@ -26,8 +24,8 @@ RUN mkdir -p /app/downloads && chmod 777 /app/downloads
 
 COPY --from=build /app/publish .
 
-ENV ASPNETCORE_URLS=http://+:80
+ENV ASPNETCORE_URLS=http://+:${PORT:-80}
 
-EXPOSE 80
+EXPOSE ${PORT:-80}
 
 ENTRYPOINT ["dotnet", "FlutterStart.Apresentation.dll"]
