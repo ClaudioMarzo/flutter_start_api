@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace FlutterStart.Application.DTO;
+namespace FlutterStart.Application.DTO.converter;
 
 public class InputConvertDto
 {
