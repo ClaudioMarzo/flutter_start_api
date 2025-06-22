@@ -23,9 +23,12 @@ RUN apt-get update && \
 RUN mkdir -p /app/downloads && chmod 777 /app/downloads
 
 COPY --from=build /app/publish .
+COPY yt-dlp_linux /app/yt-dlp_linux
+RUN chmod +x /app/yt-dlp_linux
 
-ENV ASPNETCORE_URLS=http://+:${PORT:-80}
+ENV PORT=8080
+ENV ASPNETCORE_URLS=http://+:${PORT}
 
-EXPOSE ${PORT:-80}
+EXPOSE ${PORT}
 
 ENTRYPOINT ["dotnet", "FlutterStart.Apresentation.dll"]
