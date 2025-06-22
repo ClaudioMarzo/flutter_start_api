@@ -29,6 +29,6 @@ RUN chmod +x /app/yt-dlp_linux
 ENV PORT=8080
 ENV ASPNETCORE_URLS=http://+:${PORT}
 
-EXPOSE ${PORT}
+EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "FlutterStart.Apresentation.dll"]
