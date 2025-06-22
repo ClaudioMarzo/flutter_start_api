@@ -26,8 +26,8 @@ COPY --from=build /app/publish .
 COPY yt-dlp_linux /app/yt-dlp_linux
 RUN chmod +x /app/yt-dlp_linux
 
-ENV PORT=8080
-ENV ASPNETCORE_URLS=http://+:${PORT}
+ENV DOTNET_RUNNING_IN_CONTAINER=true
+ENV ASPNETCORE_URLS=http://+:8080
 
 EXPOSE 8080
 

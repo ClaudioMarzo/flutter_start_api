@@ -29,9 +29,12 @@ public class ProcessRunner : IProcessRunner
 
     public async Task<YtDlpResponseDto> RunYtDlpAsync(string url, string format = "mp4")
     {
-        // Validação de URL (reproduzindo lógica de controller ou de aplicação se quiser centralizar aqui)
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)  || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        _logger.LogInformation("Iniciando execução do yt-dlp para URL: {Url} com formato: {Format}", url, format);
+
+        // Validação de URL: Verifica se é uma URL válida e se o esquema é http/https
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
+            _logger.LogWarning("URL inválida ou esquema não suportado: {Url}", url);
             return new YtDlpResponseDto
             {
                 Message = "URL inválida",
@@ -43,15 +46,72 @@ public class ProcessRunner : IProcessRunner
 
         // Localizar o executável yt-dlp: assumindo que está na raiz do projeto ou em um local conhecido
         var current = AppContext.BaseDirectory;
-        var directory = Directory.GetParent(current)!.Parent!.Parent!.Parent!.Parent!.FullName;
-        var runYtDlp = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "yt-dlp_windows" : "yt-dlp_linux";
-        var exePath = Path.Combine(directory, runYtDlp);
-
+        _logger.LogInformation("Diretório atual: {CurrentDirectory}", current);
+        
+        string exePath;
+        
+        // Verificar se está rodando em um container Docker
+        bool isRunningInContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+        _logger.LogInformation("Rodando em container: {IsContainer}", isRunningInContainer);
+        
+        if (isRunningInContainer)
+        {
+            // Em ambiente Docker, o executável estará no diretório da aplicação
+            var runYtDlp = "yt-dlp_linux"; // Containers Docker rodam Linux
+            exePath = Path.Combine(AppContext.BaseDirectory, runYtDlp);
+            _logger.LogInformation("Executando em contêiner Docker. Caminho do executável: {ExePath}", exePath);
+        }
+        else
+        {
+            // Em ambiente de desenvolvimento
+            try
+            {
+                var directory = Directory.GetParent(current)?.Parent?.Parent?.Parent?.Parent?.FullName;
+                if (directory == null)
+                {
+                    // Fallback para o diretório atual se não conseguir navegar para cima
+                    directory = AppDomain.CurrentDomain.BaseDirectory;
+                    _logger.LogWarning("Não foi possível determinar diretório base via GetParent. Usando diretório atual: {Directory}", directory);
+                }
+                else
+                {
+                    _logger.LogInformation("Diretório base do projeto: {BaseDirectory}", directory);
+                }
+                
+                var runYtDlp = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "yt-dlp_windows" : "yt-dlp_linux";
+                _logger.LogInformation("Executando em plataforma: {Platform}", RuntimeInformation.OSDescription);
+                _logger.LogInformation("Localizando executável yt-dlp: {RunYtDlp} e diretório: {Directory}", runYtDlp, directory);
+                exePath = Path.Combine(directory, runYtDlp);
+            }
+            catch (Exception ex)
+            {
+                // Se algo der errado com a navegação de diretórios, tente usar o diretório atual
+                _logger.LogError(ex, "Erro ao determinar caminho do executável. Usando diretório atual como fallback");
+                exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, 
+                    RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "yt-dlp_windows" : "yt-dlp_linux");
+            }
+        }
+        
+        _logger.LogInformation("Caminho final do executável yt-dlp: {ExePath}", exePath);
+        
+        // Verificar se o arquivo existe
+        if (!File.Exists(exePath))
+        {
+            _logger.LogError("Executável yt-dlp não encontrado em: {ExePath}", exePath);
+            return new YtDlpResponseDto
+            {
+                Message = "Falha no processamento",
+                Success = false,
+                Output = string.Empty,
+                Error = $"Executável yt-dlp não encontrado em: {exePath}"
+            };
+        }
+        
         // Garantir que a pasta de downloads exista; pode ser relativa ao content root ou absoluta
         string downloadFolder = _settings.DownloadFolder;
-        // Se for caminho relativo, torna-se relativo ao base directory:
         if (!Path.IsPathRooted(downloadFolder))
         {
+            _logger.LogInformation("Caminho de download relativo, convertendo para absoluto: {DownloadFolder}", downloadFolder);
             downloadFolder = Path.Combine(_env.ContentRootPath, downloadFolder);
         }
         Directory.CreateDirectory(downloadFolder);
@@ -61,7 +121,7 @@ public class ProcessRunner : IProcessRunner
         string uniqueSubfolder = Path.Combine(downloadFolder, Guid.NewGuid().ToString());
         Directory.CreateDirectory(uniqueSubfolder);
         string outputTemplate = Path.Combine(uniqueSubfolder, "%(id)s.%(ext)s");
-
+        _logger.LogInformation("Template de saída definido como: {OutputTemplate}", outputTemplate);
         var psi = new ProcessStartInfo
         {
             FileName = exePath,
@@ -150,6 +210,7 @@ public class ProcessRunner : IProcessRunner
         string? downloadedFilePath = null;
         try
         {
+            _logger.LogInformation("Procurando arquivos baixados em: {UniqueSubfolder}", uniqueSubfolder);
             var files = Directory.GetFiles(uniqueSubfolder);
             if (files.Length > 0)
             {
@@ -163,27 +224,26 @@ public class ProcessRunner : IProcessRunner
         }
         
         var request = _httpContextAccessor.HttpContext?.Request;
-        if (request != null && downloadedFilePath != null)
+        string relativePath = string.Empty;
+        if (downloadedFilePath != null)
         {
-            var relativePath = downloadedFilePath
-                .Split("downloads")[1]
-                .TrimStart(Path.DirectorySeparatorChar, '/', '\\');
-
-            var baseUrl = $"{request.Scheme}://{request.Host}";
-            downloadedFilePath = $"{baseUrl}/downloads/{relativePath.Replace('\\', '/')}";
+            var downloadsParts = downloadedFilePath.Split("downloads");
+            if (downloadsParts.Length > 1)
+            {
+                relativePath = downloadsParts[1].TrimStart(Path.DirectorySeparatorChar, '/', '\\');
+            }
         }
-
-        // Opcional: se quiser incluir caminho ou URL de download no DTO, adicione campo em YtDlpResponseDto e passe aqui.
+        _logger.LogInformation("Arquivo baixado localizado: {DownloadedFilePath}, caminho relativo: {RelativePath}", downloadedFilePath, relativePath);
+        
         var response = new YtDlpResponseDto
         {
             Message = hasError ? "Falha no processamento" : "Processamento finalizado",
-            FilePath = downloadedFilePath!,
+            FilePath = relativePath, 
             Error = error,
             Success = !hasError,
             HasWarnings = hasWarning,
             RedirectedUrl = redirectedUrl,
             FailureReason = failureReason,
-            Output = output
         };
 
         return response;

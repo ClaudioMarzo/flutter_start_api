@@ -36,3 +36,8 @@ up_dev_db:
 
 up_dev_api:
 	docker compose -f docker-compose.yml up -d flutter_start_api
+
+# criar imagem do dockerfile
+# docker build -t flutterstart_api .
+# criar container a partir da imagem
+# docker run --name flutterstart_api -p 3000:3000 flutterstart_api

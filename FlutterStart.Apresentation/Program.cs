@@ -13,8 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 string ENVIRONMENT = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
 string connectionsStrings = ENVIRONMENT == "Development" ? "ConnectionStrings:DefaultConnection" : "ConnectionStrings:ProductionConnection";
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-
 builder.WebHost.UseUrls($"http://*:{port}");
+
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();

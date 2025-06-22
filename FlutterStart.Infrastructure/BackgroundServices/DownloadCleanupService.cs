@@ -21,6 +21,7 @@ public class DownloadCleanupService : BackgroundService
         {
             try
             {
+                _logger.LogInformation("[Cleanup] Iniciando limpeza de arquivos antigos.");
                 CleanOldFilesAndFolders();
             }
             catch (Exception ex)
@@ -38,8 +39,6 @@ public class DownloadCleanupService : BackgroundService
             return;
 
         var now = DateTime.UtcNow;
-
-        // Limpa arquivos diretamente na pasta raiz downloads/
         var files = Directory.GetFiles(_downloadsPath, "*", SearchOption.TopDirectoryOnly);
         foreach (var file in files)
         {
@@ -60,6 +59,7 @@ public class DownloadCleanupService : BackgroundService
 
         // Limpa subpastas
         var subdirs = Directory.GetDirectories(_downloadsPath);
+        _logger.LogInformation($"[Cleanup] Encontrados {subdirs.Length} subdiretórios na pasta de downloads.");
         foreach (var dir in subdirs)
         {
             var dirInfo = new DirectoryInfo(dir);
