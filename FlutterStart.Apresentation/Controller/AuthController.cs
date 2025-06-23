@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using FlutterStart.Application.Services.Interfaces;
 using FlutterStart.Application.DTOs.User;
+using FlutterStart.Application.Services.Interfaces;
 
-namespace ViberLounge.API.Controllers;
+namespace FlutterStart.Presentation.Controllers;
 
 [ApiController]
 [Route("[controller]")]
@@ -28,6 +28,11 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.LoginAsync(request);
+            if (result == null)
+            {
+                _logger.LogWarning("Usuário ou senha inválidos para o email {Email}", request.Email!);
+                return BadRequest(new { message = "Usuário ou senha inválidos" });
+            }
             _logger.LogInformation("Login realizado com sucesso para o usuário {Email}", request.Email!);
             return Ok(result);
         }
@@ -48,7 +53,12 @@ public class AuthController : ControllerBase
         try
         {
             var newUser = await _authService.RegisterAsync(request);
-            _logger.LogInformation("Usuário {Email} registrado com sucesso", newUser.Email!);
+            if (newUser == null)
+            {
+                _logger.LogWarning("Erro ao processar mensagem");
+                return BadRequest();
+            }
+            _logger.LogInformation("Usuário {Email} registrado com sucesso", newUser!.Email!);
             return Created(string.Empty, new { message = "Usuário cadastrado com sucesso" });
         }
         catch (Exception ex)

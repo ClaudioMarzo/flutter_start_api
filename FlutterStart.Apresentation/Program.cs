@@ -8,18 +8,29 @@ using FlutterStart.Infrastructure.Settings;
 using FlutterStart.Infrastructure.Repository;
 using FlutterStart.Infrastructure.Repository.Interfaces;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using FlutterStart.Application.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 string ENVIRONMENT = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
 string connectionsStrings = ENVIRONMENT == "Development" ? "ConnectionStrings:DefaultConnection" : "ConnectionStrings:ProductionConnection";
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls($"http://*:{port}");
 
-builder.Services.AddSwaggerGen();
+// Configura as URLs para desenvolvimento e produção
+if (ENVIRONMENT != "Development")
+{
+    builder.WebHost.UseUrls($"http://*:{port}");
+}
+
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
+
+// Adiciona Swagger apenas em ambiente de desenvolvimento
+if (ENVIRONMENT == "Development")
+{
+    builder.Services.AddSwaggerGen();
+}
 configDataBase(builder);
 configDependencyInjection(builder);
 builder.Services.Configure<YtDlpSettings>(builder.Configuration.GetSection("YtDlpSettings"));
@@ -37,6 +48,8 @@ void configDataBase(WebApplicationBuilder serviceProvider)
 void configDependencyInjection(WebApplicationBuilder builder)
 {
     builder.Services.AddScoped<IProcessRunner, ProcessRunner>();
+    builder.Services.AddScoped<IAuthService, AuthService>();
+    builder.Services.AddScoped<IAuthRepository, AuthRepository>();
     builder.Services.AddScoped<IUrlConversionService, UrlConversionService>();
     builder.Services.AddHostedService<DownloadCleanupService>();
 }
@@ -54,13 +67,12 @@ var downloadsPath = Path.Combine(Directory.GetCurrentDirectory(), "downloads");
 Directory.CreateDirectory(downloadsPath);
 app.UseStaticFiles(new StaticFileOptions
 {
-    
     FileProvider = new PhysicalFileProvider(
         Path.Combine(Directory.GetCurrentDirectory(), "downloads")),
     RequestPath = "/downloads"
 });
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health", new HealthCheckOptions
