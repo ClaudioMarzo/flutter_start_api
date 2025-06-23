@@ -7,6 +7,8 @@ namespace FlutterStart.Infrastructure.Context;
 public class FlutterStartDbContext : DbContext
 {
     public DbSet<User> Users { get; set; }
+    public DbSet<Book> Books { get; set; }
+    public DbSet<Loan> Loans { get; set; }
 
     public FlutterStartDbContext(DbContextOptions<FlutterStartDbContext> options) : base(options) { }
 
@@ -60,6 +62,41 @@ public class FlutterStartDbContext : DbContext
             .HasConversion<string>()
             .HasDefaultValue("USER")
             .IsRequired();
+        });
+
+        modelBuilder.Entity<Book>(b =>
+        {
+            b.ToTable("Books");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Title).IsRequired();
+            b.Property(x => x.Author).IsRequired();
+            b.Property(x => x.PublicationYear).IsRequired();
+            b.Property(x => x.PageCount).IsRequired();
+            b.Property(x => x.Publisher);
+            b.Property(x => x.Edition);
+            b.Property(x => x.IsRented).HasDefaultValue(false);
+            b.Property(x => x.ImageUrl);
+            b.HasMany(x => x.Loans)
+                .WithOne(x => x.Book)
+                .HasForeignKey(x => x.BookId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Loan>(b =>
+        {
+            b.ToTable("Loans");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.IsReturned).IsRequired();
+            b.Property(x => x.StartDate).IsRequired();
+            b.Property(x => x.DueDate).IsRequired();
+            b.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            b.HasOne(x => x.Book)
+                .WithMany(x => x.Loans)
+                .HasForeignKey(x => x.BookId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
