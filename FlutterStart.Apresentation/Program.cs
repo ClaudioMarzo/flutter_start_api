@@ -11,12 +11,12 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using FlutterStart.Application.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
-string ENVIRONMENT = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-string connectionsStrings = ENVIRONMENT == "Development" ? "ConnectionStrings:DefaultConnection" : "ConnectionStrings:ProductionConnection";
+string environment  = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+string connectionsStrings = environment  == "Development" ? "ConnectionStrings:DefaultConnection" : "ConnectionStrings:ProductionConnection";
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 
 // Configura as URLs para desenvolvimento e produção
-if (ENVIRONMENT != "Development")
+if (environment  != "Development")
 {
     builder.WebHost.UseUrls($"http://*:{port}");
 }
@@ -27,7 +27,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
 
 // Adiciona Swagger apenas em ambiente de desenvolvimento
-if (ENVIRONMENT == "Development")
+if (environment  == "Development")
 {
     builder.Services.AddSwaggerGen();
 }
@@ -55,6 +55,13 @@ void configDependencyInjection(WebApplicationBuilder builder)
 }
 
 var app = builder.Build();
+
+// Executa as migrations automaticamente ao iniciar
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<FlutterStartDbContext>();
+    db.Database.Migrate();
+}
 
 if (app.Environment.IsDevelopment())
 {
