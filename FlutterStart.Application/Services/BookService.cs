@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using FlutterStart.Application.DTO;
 using FlutterStart.Domain.Entities;
 using FlutterStart.Application.DTO.Book;
-using FlutterStart.Infrastructure.Context;
 using FlutterStart.Application.Exceptions;
 using FlutterStart.Application.Services.Interfaces;
 using FlutterStart.Infrastructure.Repository.Interfaces;
@@ -14,15 +13,13 @@ public class BookService : IBookService
 {
     private readonly IMapper _mapper;
     private readonly ILogger<BookService> _logger;
-    private readonly FlutterStartDbContext _context;
     private readonly IBookRepository _bookRepository;
     private readonly IFileStorageService _fileStorageService;
 
-    public BookService(IMapper mapper, FlutterStartDbContext context, ILogger<BookService> logger, IBookRepository bookRepository, IFileStorageService fileStorageService)
+    public BookService(IMapper mapper, ILogger<BookService> logger, IBookRepository bookRepository, IFileStorageService fileStorageService)
     {
         _mapper = mapper;
         _logger = logger;
-        _context = context;
         _bookRepository = bookRepository;
         _fileStorageService = fileStorageService;
     }
@@ -63,6 +60,14 @@ public class BookService : IBookService
             _logger.LogInformation("Livro criado com sucesso: {Title}", createdBook.Title);
             return _mapper.Map<BookDto>(createdBook);
         }
+        catch (ValidationException)
+        {
+            throw;
+        }
+        catch (ConflictException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao criar livro");
@@ -75,13 +80,46 @@ public class BookService : IBookService
         throw new NotImplementedException();
     }
 
-    public Task<IEnumerable<BookResponseDto>> GetAllBooksAsync()
+    public async Task<List<BookDto>> GetAllBooksAsync()
     {
-        throw new NotImplementedException();
+        try
+        {
+            var books = await _bookRepository.GetAllBooksAsync();
+            if (books == null || !books.Any())
+            {
+                _logger.LogWarning("Nenhum livro encontrado");
+                throw new NotFoundException("Nenhum livro encontrado");
+            }
+            _logger.LogInformation("Total de livros encontrados: {Count}", books.Count());
+            return _mapper.Map<List<BookDto>>(books);
+        }
+        catch (NotFoundException)
+        {
+            throw; 
+        }
     }
 
-    public Task<BookDto> GetBookByTitleAsync(string title)
+    public async Task<List<BookDto>> GetBookByTitleAsync(string title)
     {
-        throw new NotImplementedException();
+        _logger.LogInformation("Buscando livro por título: {Title}", title);
+        try
+        {
+            var books = await _bookRepository.GetBooksByTitleAsync(title);
+            if (books == null || !books.Any())
+            {
+                _logger.LogWarning("Nenhum livro encontrado: {Title}", title);
+                throw new NotFoundException($"Nenhum livro encontrado com título '{title}'");
+            }
+            return _mapper.Map<List<BookDto>>(books);
+        }
+        catch (NotFoundException)
+        {
+            throw; 
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao buscar livro por título: {Title}", title);
+            throw new Exception("Erro interno do servidor", ex);
+        }
     }
 }

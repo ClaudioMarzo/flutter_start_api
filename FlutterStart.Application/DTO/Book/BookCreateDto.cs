@@ -38,7 +38,7 @@ public class BookCreateDto
     public string? Edition { get; set; }
 
     [Required(ErrorMessage = "O gênero do produto é obrigatório")]
-    [StringLength(20, ErrorMessage = "O gênero deve ter no máximo 20 caracteres.")]
+    [StringLength(30, ErrorMessage = "O gênero deve ter no máximo 20 caracteres.")]
     public string? Genre { get; set; }
 
     [Required(ErrorMessage = "A imagem do produto é obrigatória")]

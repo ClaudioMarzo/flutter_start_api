@@ -20,19 +20,42 @@ public class BookController : ControllerBase
     [HttpGet("books")]
     public async Task<IActionResult> GetBooks()
     {
-        var books = await _bookService.GetAllBooksAsync();
-        return Ok(books);
+        try
+        {
+            var books = await _bookService.GetAllBooksAsync();
+            return Ok(books);
+        } catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Nenhum livro encontrado");
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao obter livros");
+            return StatusCode(500, "Erro interno do servidor");
+            
+        }
     }
 
     [HttpGet("books/{title}")]
     public async Task<IActionResult> GetBookById(string title)
     {
-        var book = await _bookService.GetBookByTitleAsync(title);
-        if (book == null)
+        _logger.LogInformation("Buscando livro por título: {Title}", title);
+        try
         {
-            return NotFound();
+            var book = await _bookService.GetBookByTitleAsync(title);
+            return Ok(book);
         }
-        return Ok(book);
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Livro não encontrado");
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao obter livro");
+            return StatusCode(500, "Erro interno do servidor");
+        }
     }
 
     [HttpPost("create-book")]
@@ -42,13 +65,13 @@ public class BookController : ControllerBase
     [Produces("application/json")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(BookDto), 201)]
-    public async Task<IActionResult> CreateBook([FromBody] BookCreateDto bookDto)
+    public async Task<IActionResult> CreateBook([FromForm] BookCreateDto bookDto)
     {
+        _logger.LogInformation("Iniciando criação de livro: {Title}", bookDto.Title);
         try
         {
             var createdBook = await _bookService.CreateBookAsync(bookDto);
-            return CreatedAtAction(nameof(GetBookById), new { id = createdBook.Id }, createdBook);
-
+            return CreatedAtAction(nameof(GetBookById), new { title = createdBook.Title }, createdBook);
         }
         catch (ValidationException ex)
         {

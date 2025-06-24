@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
+using FlutterStart.Application.Services.Interfaces;
 
 namespace FlutterStart.Application.Services;
 
@@ -45,7 +46,7 @@ public class FileStorageService : IFileStorageService
         }
 
         string fileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
-        string uploadsFolder = Path.Combine(_environment.WebRootPath, subfolder);
+        string uploadsFolder = Path.Combine(_environment.WebRootPath,"images",subfolder);
         if (!Directory.Exists(uploadsFolder))
         {
             _logger.LogInformation($"Criando diretório para uploads: {uploadsFolder}");

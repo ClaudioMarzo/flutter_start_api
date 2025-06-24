@@ -1,4 +1,5 @@
 using FlutterStart.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using FlutterStart.Infrastructure.Context;
 using FlutterStart.Infrastructure.Repository.Interfaces;
 
@@ -30,18 +31,23 @@ public class BookRepository : IBookRepository
         throw new NotImplementedException();
     }
 
-    Task<IEnumerable<Book>> IBookRepository.GetAllBooksAsync()
+    public Task<Book?> GetBookByIdAsync(string ISBN)
     {
-        throw new NotImplementedException();
+        var book = _context.Books.AsNoTracking().FirstOrDefault(b => b.ISBN == ISBN);
+        return Task.FromResult(book);
     }
 
-    public Task<Book> GetBookByIdAsync(string ISBN)
+    public async Task<List<Book>> GetAllBooksAsync()
     {
-        throw new NotImplementedException();
+        return await _context.Books.AsNoTracking().OrderBy(b => b.Id).ToListAsync();
     }
 
-    Task<Book> IBookRepository.GetBookByTitleAsync(string title)
+    public async Task<List<Book>> GetBooksByTitleAsync(string title)
     {
-        throw new NotImplementedException();
+        var books = await _context.Books
+            .AsNoTracking()
+            .Where(b => EF.Functions.ILike(b.Title!, $"%{title}%"))
+            .ToListAsync();
+        return books;
     }
 }

@@ -1,14 +1,15 @@
 using HealthChecks.UI.Client;
 using Microsoft.EntityFrameworkCore;
+using FlutterStart.Application.Mapping;
 using FlutterStart.Application.Services;
 using Microsoft.Extensions.FileProviders;
 using FlutterStart.Application.Interfaces;
 using FlutterStart.Infrastructure.Context;
 using FlutterStart.Infrastructure.Settings;
 using FlutterStart.Infrastructure.Repository;
-using FlutterStart.Infrastructure.Repository.Interfaces;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using FlutterStart.Application.Services.Interfaces;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using FlutterStart.Infrastructure.Repository.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 string environment  = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
@@ -25,6 +26,7 @@ builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 // Adiciona Swagger apenas em ambiente de desenvolvimento
 if (environment  == "Development")
@@ -47,11 +49,14 @@ void configDataBase(WebApplicationBuilder serviceProvider)
 // Configuração da injeção de dependência
 void configDependencyInjection(WebApplicationBuilder builder)
 {
-    builder.Services.AddScoped<IProcessRunner, ProcessRunner>();
-    builder.Services.AddScoped<IAuthService, AuthService>();
-    builder.Services.AddScoped<IAuthRepository, AuthRepository>();
-    builder.Services.AddScoped<IUrlConversionService, UrlConversionService>();
     builder.Services.AddHostedService<DownloadCleanupService>();
+    builder.Services.AddScoped<IAuthService, AuthService>();
+    builder.Services.AddScoped<IBookService, BookService>();
+    builder.Services.AddScoped<IProcessRunner, ProcessRunner>();
+    builder.Services.AddScoped<IBookRepository, BookRepository>();
+    builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+    builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+    builder.Services.AddScoped<IUrlConversionService, UrlConversionService>();
 }
 
 var app = builder.Build();
@@ -72,7 +77,7 @@ if (app.Environment.IsDevelopment())
 
 // Garante que a pasta wwwroot/imagens exista
 var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-var imagensPath = Path.Combine(wwwrootPath, "imagens");
+var imagensPath = Path.Combine(wwwrootPath, "images");
 Directory.CreateDirectory(imagensPath);
 
 var downloadsPath = Path.Combine(Directory.GetCurrentDirectory(), "downloads");
@@ -86,6 +91,7 @@ app.UseStaticFiles(new StaticFileOptions
 
 // app.UseHttpsRedirection();
 app.UseAuthorization();
+app.UseStaticFiles();
 app.MapControllers();
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
