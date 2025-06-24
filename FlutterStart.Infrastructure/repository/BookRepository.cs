@@ -15,7 +15,14 @@ public class BookRepository : IBookRepository
 
     public Task<Book> CreateBookAsync(Book bookDto)
     {
-        throw new NotImplementedException();
+        if (bookDto == null)
+        {
+            throw new ArgumentNullException(nameof(bookDto), "Book cannot be null");
+        }
+
+        _context.Books.Add(bookDto);
+        _context.SaveChanges();
+        return Task.FromResult(bookDto);
     }
 
     public Task<Book> CreateLoanAsync(Loan bookLoan)
@@ -28,7 +35,7 @@ public class BookRepository : IBookRepository
         throw new NotImplementedException();
     }
 
-    public Task<Book> GetBookByIdAsync(int id)
+    public Task<Book> GetBookByIdAsync(string ISBN)
     {
         throw new NotImplementedException();
     }

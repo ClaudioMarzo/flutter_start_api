@@ -70,6 +70,11 @@ if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection(); 
 }
 
+// Garante que a pasta wwwroot/imagens exista
+var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+var imagensPath = Path.Combine(wwwrootPath, "imagens");
+Directory.CreateDirectory(imagensPath);
+
 var downloadsPath = Path.Combine(Directory.GetCurrentDirectory(), "downloads");
 Directory.CreateDirectory(downloadsPath);
 app.UseStaticFiles(new StaticFileOptions
