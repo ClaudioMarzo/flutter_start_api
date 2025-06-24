@@ -31,6 +31,9 @@ remove_migration:
 update_migration:
 	dotnet ef database update --startup-project $(STARTUP_FOLDER) --project $(INFRA_FOLDER)
 
+revert_last_migration:
+	dotnet ef database update $(name) --startup-project $(STARTUP_FOLDER) --project $(INFRA_FOLDER)
+
 up_dev_db:
 	docker compose up -d flutter_start_database
 

@@ -3,6 +3,7 @@ using System;
 using FlutterStart.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FlutterStart.Infrastructure.Migrations
 {
     [DbContext(typeof(FlutterStartDbContext))]
-    partial class FlutterStartDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250624151946_AddSbnBook")]
+    partial class AddSbnBook
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -37,19 +40,7 @@ namespace FlutterStart.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Dimensions")
-                        .HasColumnType("text");
-
                     b.Property<string>("Edition")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Format")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Genre")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ISBN")
                         .HasColumnType("text");
 
                     b.Property<string>("ImageUrl")
@@ -63,12 +54,6 @@ namespace FlutterStart.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
-                    b.Property<string>("Language")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Location")
-                        .HasColumnType("text");
-
                     b.Property<int>("PageCount")
                         .HasColumnType("integer");
 
@@ -76,6 +61,9 @@ namespace FlutterStart.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("Publisher")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Sbn")
                         .HasColumnType("text");
 
                     b.Property<string>("Summary")

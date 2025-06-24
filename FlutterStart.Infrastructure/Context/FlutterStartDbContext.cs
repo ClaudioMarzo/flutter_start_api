@@ -68,7 +68,10 @@ public class FlutterStartDbContext : DbContext
         {
             b.ToTable("Books");
             b.HasKey(x => x.Id);
+            b.Property(x => x.ISBN);
             b.Property(x => x.Title).IsRequired();
+            b.Property(x => x.Summary);
+            b.Property(x => x.Genre);
             b.Property(x => x.Author).IsRequired();
             b.Property(x => x.PublicationYear).IsRequired();
             b.Property(x => x.PageCount).IsRequired();
@@ -76,6 +79,10 @@ public class FlutterStartDbContext : DbContext
             b.Property(x => x.Edition);
             b.Property(x => x.IsRented).HasDefaultValue(false);
             b.Property(x => x.ImageUrl);
+            b.Property(x => x.Language);
+            b.Property(x => x.Format);
+            b.Property(x => x.Dimensions);
+            b.Property(x => x.Location);
             b.HasMany(x => x.Loans)
                 .WithOne(x => x.Book)
                 .HasForeignKey(x => x.BookId)
