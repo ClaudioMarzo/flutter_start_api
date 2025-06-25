@@ -3,14 +3,14 @@ using Microsoft.Extensions.Logging;
 using FlutterStart.Application.DTO;
 using FlutterStart.Domain.Entities;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
+using FlutterStart.Infrastructure.DTO;
 using FlutterStart.Application.DTO.Book;
 using FlutterStart.Application.Exceptions;
 using static FlutterStart.Domain.Entities.Loan;
 using FlutterStart.Application.Services.Interfaces;
 using FlutterStart.Infrastructure.Services.Interfaces;
 using FlutterStart.Infrastructure.Repository.Interfaces;
-using Microsoft.Extensions.Hosting;
-using FlutterStart.Infrastructure.DTO;
 
 namespace FlutterStart.Application.Services;
 
@@ -22,9 +22,9 @@ public class BookService : IBookService
     private readonly IBookRepository _bookRepository;
     private readonly IAuthRepository _authRepository;
     private readonly IFileStorageService _fileStorageService;
-    private readonly IImageStorageService _imageStorageService;
+    private readonly ICloudinaryService _imageStorageService;
 
-    public BookService(IMapper mapper, IWebHostEnvironment env, ILogger<BookService> logger, IBookRepository bookRepository, IAuthRepository authRepository, IFileStorageService fileStorageService, IImageStorageService imageStorageService)
+    public BookService(IMapper mapper, IWebHostEnvironment env, ILogger<BookService> logger, IBookRepository bookRepository, IAuthRepository authRepository, IFileStorageService fileStorageService, ICloudinaryService imageStorageService)
     {
         _env = env;
         _mapper = mapper;

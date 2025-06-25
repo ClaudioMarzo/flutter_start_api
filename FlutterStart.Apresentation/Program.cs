@@ -65,7 +65,7 @@ void configDependencyInjection(WebApplicationBuilder builder)
     builder.Services.AddScoped<IAuthRepository, AuthRepository>();
     builder.Services.AddScoped<IFileStorageService, FileStorageService>();
     builder.Services.AddScoped<IUrlConversionService, UrlConversionService>();
-    builder.Services.AddScoped<IImageStorageService, CloudinaryImageService>();
+    builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 }
 
 var app = builder.Build();

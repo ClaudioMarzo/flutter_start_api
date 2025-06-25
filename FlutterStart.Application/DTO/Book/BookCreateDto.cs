@@ -22,7 +22,6 @@ public class BookCreateDto
     public string? Isbn { get; set; }
 
     [Required (ErrorMessage = "O ano de publicação do produto é obrigatório")]
-    [Range(1000, 9999, ErrorMessage = "O ano de publicação deve estar entre 1000 e 9999.")]
     public int PublicationYear { get; set; }
 
     [Required (ErrorMessage = "O número de páginas do produto é obrigatório")]
@@ -38,7 +37,7 @@ public class BookCreateDto
     public string? Edition { get; set; }
 
     [Required(ErrorMessage = "O gênero do produto é obrigatório")]
-    [StringLength(30, ErrorMessage = "O gênero deve ter no máximo 20 caracteres.")]
+    [StringLength(50, ErrorMessage = "O gênero deve ter no máximo 20 caracteres.")]
     public string? Genre { get; set; }
 
     [Required(ErrorMessage = "A imagem do produto é obrigatória")]
