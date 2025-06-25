@@ -1,5 +1,4 @@
-
-using FlutterStart.Application.DTO;
+using FlutterStart.Infrastructure.DTO;
 
 namespace FlutterStart.Infrastructure.Repository.Interfaces;
 public interface IProcessRunner

@@ -1,4 +1,4 @@
-namespace FlutterStart.Application.DTO;
+namespace FlutterStart.Infrastructure.DTO;
 
 public class YtDlpResponseDto
 {

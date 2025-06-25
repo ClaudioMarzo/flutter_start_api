@@ -1,12 +1,12 @@
 using System.Text;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Http;
-using FlutterStart.Application.DTO;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Options;
 using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
+using FlutterStart.Infrastructure.DTO;
 using FlutterStart.Infrastructure.Settings;
 using FlutterStart.Infrastructure.Repository.Interfaces;
 

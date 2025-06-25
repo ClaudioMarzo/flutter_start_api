@@ -2,29 +2,37 @@ using AutoMapper;
 using Microsoft.Extensions.Logging;
 using FlutterStart.Application.DTO;
 using FlutterStart.Domain.Entities;
+using Microsoft.AspNetCore.Hosting;
 using FlutterStart.Application.DTO.Book;
 using FlutterStart.Application.Exceptions;
 using static FlutterStart.Domain.Entities.Loan;
 using FlutterStart.Application.Services.Interfaces;
+using FlutterStart.Infrastructure.Services.Interfaces;
 using FlutterStart.Infrastructure.Repository.Interfaces;
+using Microsoft.Extensions.Hosting;
+using FlutterStart.Infrastructure.DTO;
 
 namespace FlutterStart.Application.Services;
 
 public class BookService : IBookService
 {
     private readonly IMapper _mapper;
+    private readonly IWebHostEnvironment _env;
     private readonly ILogger<BookService> _logger;
     private readonly IBookRepository _bookRepository;
     private readonly IAuthRepository _authRepository;
     private readonly IFileStorageService _fileStorageService;
+    private readonly IImageStorageService _imageStorageService;
 
-    public BookService(IMapper mapper, ILogger<BookService> logger, IBookRepository bookRepository, IAuthRepository authRepository, IFileStorageService fileStorageService)
+    public BookService(IMapper mapper, IWebHostEnvironment env, ILogger<BookService> logger, IBookRepository bookRepository, IAuthRepository authRepository, IFileStorageService fileStorageService, IImageStorageService imageStorageService)
     {
+        _env = env;
         _mapper = mapper;
         _logger = logger;
         _bookRepository = bookRepository;
         _authRepository = authRepository;
         _fileStorageService = fileStorageService;
+        _imageStorageService = imageStorageService;
     }
 
     public async Task<BookDto> CreateBookAsync(BookCreateDto bookDto)
@@ -35,9 +43,22 @@ public class BookService : IBookService
             var bookExist = await _bookRepository.GetBookByISBNAsync(bookDto.Isbn!);
             if (bookExist != null)
                 throw new ConflictException($"Livro com {bookDto.Isbn} já existe");
-            
-            var pathImage = await _fileStorageService.SaveImageAsync(bookDto.ImageUrl!, "books");
-            if (string.IsNullOrEmpty(pathImage))
+
+            ImageUploadResultDto uploadResult;
+
+            if (_env.IsDevelopment())
+            {
+                _logger.LogInformation("Ambiente de desenvolvimento detectado. Salvando imagem localmente.");
+                var localPath = await _fileStorageService.SaveImageAsync(bookDto.ImageUrl!, "books");
+                uploadResult = new ImageUploadResultDto { Url = localPath, PublicId = string.Empty };
+            }
+            else
+            {
+                _logger.LogInformation("Ambiente de produção detectado. Enviando imagem para o armazenamento.");
+                uploadResult = await _imageStorageService.UploadImageAsync(bookDto.ImageUrl!, "books");
+            }
+
+            if (string.IsNullOrEmpty(uploadResult.Url))
                 throw new InvalidOperationException("Erro ao salvar a imagem do livro. Verifique o arquivo enviado.");
 
             Book book = new()
@@ -51,7 +72,7 @@ public class BookService : IBookService
                 PageCount = bookDto.PageCount,
                 Publisher = bookDto.Publisher,
                 Edition = bookDto.Edition,
-                ImageUrl = pathImage,
+                ImageUrl = uploadResult.Url,
                 Language = bookDto.Language,
                 Format = bookDto.Format,
                 Dimensions = bookDto.Dimensions,

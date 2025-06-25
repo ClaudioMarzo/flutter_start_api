@@ -5,10 +5,12 @@ using FlutterStart.Application.Services;
 using Microsoft.Extensions.FileProviders;
 using FlutterStart.Application.Interfaces;
 using FlutterStart.Infrastructure.Context;
+using FlutterStart.Infrastructure.Services;
 using FlutterStart.Infrastructure.Settings;
 using FlutterStart.Infrastructure.Repository;
 using FlutterStart.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using FlutterStart.Infrastructure.Services.Interfaces;
 using FlutterStart.Infrastructure.Repository.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +19,7 @@ string connectionsStrings = environment  == "Development" ? "ConnectionStrings:D
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 
 // Configura as URLs para desenvolvimento e produção
-if (environment  != "Development")
+if (environment != "Development")
 {
     builder.WebHost.UseUrls($"http://*:{port}");
 }
@@ -57,6 +59,7 @@ void configDependencyInjection(WebApplicationBuilder builder)
     builder.Services.AddScoped<IAuthRepository, AuthRepository>();
     builder.Services.AddScoped<IFileStorageService, FileStorageService>();
     builder.Services.AddScoped<IUrlConversionService, UrlConversionService>();
+    builder.Services.AddScoped<IImageStorageService, CloudinaryImageService>();
 }
 
 var app = builder.Build();

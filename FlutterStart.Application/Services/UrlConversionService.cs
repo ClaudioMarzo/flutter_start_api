@@ -1,8 +1,8 @@
-using FlutterStart.Application.DTO;
 using Microsoft.Extensions.Logging;
+using FlutterStart.Infrastructure.DTO;
 using FlutterStart.Application.Interfaces;
-using FlutterStart.Infrastructure.Repository.Interfaces;
 using FlutterStart.Application.DTO.converter;
+using FlutterStart.Infrastructure.Repository.Interfaces;
 
 namespace FlutterStart.Application.Services
 {
