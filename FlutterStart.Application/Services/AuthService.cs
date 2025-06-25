@@ -1,9 +1,9 @@
 using FlutterStart.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 using FlutterStart.Application.DTOs.User;
 using FlutterStart.Application.Services.Interfaces;
 using FlutterStart.Infrastructure.Repository.Interfaces;
-using System.Text.RegularExpressions;
 
 namespace FlutterStart.Application.Services;
 
@@ -94,7 +94,7 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             _logger.LogError("Erro inesperado na camada de serviço: {erro}", ex);
-            return null;
+            throw;
         }
     }
 

@@ -4,6 +4,7 @@ using FlutterStart.Application.DTO;
 using FlutterStart.Domain.Entities;
 using FlutterStart.Application.DTO.Book;
 using FlutterStart.Application.Exceptions;
+using static FlutterStart.Domain.Entities.Loan;
 using FlutterStart.Application.Services.Interfaces;
 using FlutterStart.Infrastructure.Repository.Interfaces;
 
@@ -14,13 +15,15 @@ public class BookService : IBookService
     private readonly IMapper _mapper;
     private readonly ILogger<BookService> _logger;
     private readonly IBookRepository _bookRepository;
+    private readonly IAuthRepository _authRepository;
     private readonly IFileStorageService _fileStorageService;
 
-    public BookService(IMapper mapper, ILogger<BookService> logger, IBookRepository bookRepository, IFileStorageService fileStorageService)
+    public BookService(IMapper mapper, ILogger<BookService> logger, IBookRepository bookRepository, IAuthRepository authRepository, IFileStorageService fileStorageService)
     {
         _mapper = mapper;
         _logger = logger;
         _bookRepository = bookRepository;
+        _authRepository = authRepository;
         _fileStorageService = fileStorageService;
     }
 
@@ -29,7 +32,7 @@ public class BookService : IBookService
         _logger.LogInformation("Iniciando criação de livro: {Title}", bookDto.Title);
         try
         {
-            var bookExist = await _bookRepository.GetBookByIdAsync(bookDto.Isbn!);
+            var bookExist = await _bookRepository.GetBookByISBNAsync(bookDto.Isbn!);
             if (bookExist != null)
                 throw new ConflictException($"Livro com {bookDto.Isbn} já existe");
             
@@ -75,9 +78,47 @@ public class BookService : IBookService
         }
     }
 
-    public Task<BookDto> CreateLoanAsync(BookLoanDto bookLoan)
+    public async Task<LoanResponseDto> CreateLoanAsync(LoanRequestDto bookLoan)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var user = await _authRepository.GetUserByIdAsync(bookLoan.UserId);
+            if (user == null)
+                throw new NotFoundException($"Usuário com ID {bookLoan.UserId} não encontrado");
+
+            var book = await _bookRepository.GetBookByIdAsync(bookLoan.BookId);
+            if (book == null)
+                throw new NotFoundException($"Livro com ID {bookLoan.BookId} não encontrado");
+            if (book.IsRented)
+                throw new ConflictException($"Livro com ID {bookLoan.BookId} já está emprestado");
+
+            Loan loan = new()
+            {
+                BookId = bookLoan.BookId,
+                UserId = bookLoan.UserId,
+                Status = LoanStatus.Borrowed,
+                LoanDate = DateTime.UtcNow,
+                DueDate = DateTime.UtcNow.AddMonths(1), // Definindo prazo de devolução para 1 mês
+                Observations = bookLoan.Observations ?? string.Empty
+            };
+            book.IsRented = true;
+
+            _logger.LogInformation("Iniciando criação de empréstimo para LivroId: {LivroId}, UsuárioId: {UsuarioId}", bookLoan.BookId, bookLoan.UserId);
+            var createdLoan = await _bookRepository.CreateLoanAsync(loan, book);
+
+            if (createdLoan == null)
+                throw new Exception($"Ocorreu um erro ao criar empréstimo");
+            
+            return _mapper.Map<LoanResponseDto>(createdLoan);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
     }
 
     public async Task<List<BookDto>> GetAllBooksAsync()

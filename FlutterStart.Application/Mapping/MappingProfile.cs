@@ -1,6 +1,7 @@
 using AutoMapper;
 using FlutterStart.Application.DTO;
 using FlutterStart.Domain.Entities;
+using FlutterStart.Application.DTO.Book;
 
 namespace FlutterStart.Application.Mapping;
 
@@ -8,6 +9,14 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
+        CreateMap<Loan, LoanResponseDto>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.BookId, opt => opt.MapFrom(src => src.BookId))
+            .ForMember(dest => dest.BookISBN, opt => opt.MapFrom(src => src.Book != null && src.Book.ISBN != null ? src.Book.ISBN : ""))
+            .ForMember(dest => dest.BookTitle, opt => opt.MapFrom(src => src.Book != null ? src.Book.Title : ""))
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User != null ? src.User.Nome : ""))
+            .ForMember(dest => dest.LoanDate, opt => opt.MapFrom(src => src.LoanDate))
+            .ForMember(dest => dest.ReturnDate, opt => opt.MapFrom(src => src.DueDate));
         CreateMap<Book, BookDto>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.Isbn, opt => opt.MapFrom(src => src.ISBN))
@@ -23,6 +32,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Language, opt => opt.MapFrom(src => src.Language))
             .ForMember(dest => dest.Format, opt => opt.MapFrom(src => src.Format))
             .ForMember(dest => dest.Dimensions, opt => opt.MapFrom(src => src.Dimensions))
-            .ForMember(dest => dest.Location, opt => opt.MapFrom(src => src.Location));
+            .ForMember(dest => dest.Location, opt => opt.MapFrom(src => src.Location))
+            .ForMember(dest => dest.IsRented, opt => opt.MapFrom(src => src.IsRented));
     }
 }

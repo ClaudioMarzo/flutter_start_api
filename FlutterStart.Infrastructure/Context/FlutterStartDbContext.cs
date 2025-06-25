@@ -93,9 +93,10 @@ public class FlutterStartDbContext : DbContext
         {
             b.ToTable("Loans");
             b.HasKey(x => x.Id);
-            b.Property(x => x.IsReturned).IsRequired();
-            b.Property(x => x.StartDate).IsRequired();
+            b.Property(x => x.LoanDate).IsRequired();
             b.Property(x => x.DueDate).IsRequired();
+            b.Property(x => x.Status).IsRequired();
+            b.Property(x => x.Observations);
             b.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)

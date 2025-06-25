@@ -1,4 +1,5 @@
 using FlutterStart.Domain.Entities;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using FlutterStart.Infrastructure.Context;
 using FlutterStart.Infrastructure.Repository.Interfaces;
@@ -8,9 +9,11 @@ namespace FlutterStart.Infrastructure.Repository;
 public class BookRepository : IBookRepository
 {
     private readonly FlutterStartDbContext _context;
+    private readonly ILogger<BookRepository> _logger;
 
-    public BookRepository(FlutterStartDbContext context)
+    public BookRepository(FlutterStartDbContext context, ILogger<BookRepository> logger)
     {
+        _logger = logger;
         _context = context;
     }
 
@@ -26,12 +29,34 @@ public class BookRepository : IBookRepository
         return Task.FromResult(bookDto);
     }
 
-    public Task<Book> CreateLoanAsync(Loan bookLoan)
+    public async Task<Loan?> CreateLoanAsync(Loan bookLoan, Book book)
     {
-        throw new NotImplementedException();
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            _context.Loans.Add(bookLoan);
+            _context.Books.Update(book);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            var bookResponse = await _context.Loans
+                .Include(b => b.Book)
+                .Include(u => u.User)
+                .AsNoTracking()
+                .OrderByDescending(l => l.Id)
+                .FirstOrDefaultAsync(l => l.BookId == book.Id);
+
+            return bookResponse;
+        }
+        catch (DbUpdateException dbEx)
+        {
+            _logger.LogError(dbEx, "Erro ao criar o empréstimo do livro com ID {BookId}", book.Id);
+            await transaction.RollbackAsync();
+            return null;
+        }
     }
 
-    public Task<Book?> GetBookByIdAsync(string ISBN)
+    public Task<Book?> GetBookByISBNAsync(string ISBN)
     {
         var book = _context.Books.AsNoTracking().FirstOrDefault(b => b.ISBN == ISBN);
         return Task.FromResult(book);
@@ -49,5 +74,11 @@ public class BookRepository : IBookRepository
             .Where(b => EF.Functions.ILike(b.Title!, $"%{title}%"))
             .ToListAsync();
         return books;
+    }
+
+    public Task<Book?> GetBookByIdAsync(int id)
+    {
+        var book = _context.Books.AsTracking().FirstOrDefault(b => b.Id == id);
+        return Task.FromResult(book);
     }
 }

@@ -35,4 +35,10 @@ public class AuthRepository : IAuthRepository
         var isUserExist = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email);
         return isUserExist;
     }
+
+    public Task<User?> GetUserByIdAsync(int id)
+    {
+        var user = _context.Users.AsNoTracking().FirstOrDefault(u => u.Id == id);
+        return Task.FromResult(user);
+    }
 }

@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using FlutterStart.Application.DTO;
 using FlutterStart.Application.DTO.Book;
-using FlutterStart.Application.Services.Interfaces;
 using FlutterStart.Application.Exceptions;
+using FlutterStart.Application.Services.Interfaces;
 
 namespace FlutterStart.Apresentation.Controller;
+
 [ApiController]
 public class BookController : ControllerBase
 {
@@ -18,13 +19,18 @@ public class BookController : ControllerBase
     }
 
     [HttpGet("books")]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    [ProducesResponseType(typeof(List<BookDto>), 200)]
+    [Produces("application/json")]
     public async Task<IActionResult> GetBooks()
     {
         try
         {
             var books = await _bookService.GetAllBooksAsync();
             return Ok(books);
-        } catch (NotFoundException ex)
+        }
+        catch (NotFoundException ex)
         {
             _logger.LogWarning(ex, "Nenhum livro encontrado");
             return NotFound(ex.Message);
@@ -33,11 +39,15 @@ public class BookController : ControllerBase
         {
             _logger.LogError(ex, "Erro ao obter livros");
             return StatusCode(500, "Erro interno do servidor");
-            
+
         }
     }
 
     [HttpGet("books/{title}")]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    [ProducesResponseType(typeof(BookDto), 200)]
+    [Produces("application/json")]
     public async Task<IActionResult> GetBookById(string title)
     {
         _logger.LogInformation("Buscando livro por título: {Title}", title);
@@ -90,23 +100,24 @@ public class BookController : ControllerBase
         }
     }
     [HttpPost("create-loan")]
-    public async Task<IActionResult> CreateLoan([FromBody] BookLoanDto bookLoan)
+    [ProducesResponseType(400)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    [ProducesResponseType(typeof(LoanResponseDto), 201)]
+    [Produces("application/json")]
+    public async Task<IActionResult> CreateLoan([FromBody] LoanRequestDto bookLoan)
     {
+        _logger.LogInformation("Iniciando criação de empréstimo para LivroId: {LivroId}", bookLoan.BookId);
         try
         {
             var loan = await _bookService.CreateLoanAsync(bookLoan);
-            if (loan == null)
-            {
-                return NotFound();
-            }
-
-            return CreatedAtAction(nameof(GetBookById), new { title = loan.Title }, loan);
+            return CreatedAtAction(nameof(GetBookById), new { title = loan.BookTitle }, loan);
         }
         catch (ConflictException ex)
         {
             _logger.LogWarning(ex, "Já existe um empréstimo ativo para este livro");
             return NotFound(ex.Message);
-            
+
         }
         catch (Exception ex)
         {

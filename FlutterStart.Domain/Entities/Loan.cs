@@ -8,7 +8,15 @@ public class Loan : BaseEntity
     public int UserId { get; set; }
     public virtual Book? Book { get; set; }
     public int BookId { get; set; }
-    public bool IsReturned { get; set; }
-    public DateTime StartDate { get; set; }
+    public DateTime LoanDate { get; set; }
     public DateTime DueDate { get; set; }
+    public string? Status { get; set; }
+    public string? Observations { get; set; }
+
+    public static class LoanStatus
+    {
+        public const string Borrowed = "EMPRESTADO";
+        public const string Returned = "DEVOLVIDO";
+        public const string Overdue = "ATRASADO";
+    }
 }

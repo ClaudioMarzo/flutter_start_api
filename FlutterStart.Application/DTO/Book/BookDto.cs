@@ -17,4 +17,5 @@ public class BookDto
     public string? Format { get; set; }
     public string? Dimensions { get; set; }
     public string? Location { get; set; }
+    public bool IsRented { get; set; }
 }
