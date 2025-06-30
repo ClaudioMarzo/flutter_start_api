@@ -31,10 +31,16 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 // Adiciona Swagger apenas em ambiente de desenvolvimento
-if (environment  == "Development")
+builder.Services.AddSwaggerGen(c =>
 {
-    builder.Services.AddSwaggerGen();
-}
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    { 
+        Title = "FlutterStart API", 
+        Version = "v1",
+        Description = "API para o aplicativo FlutterStart"
+    });
+});
+
 configDataBase(builder);
 configDependencyInjection(builder);
 builder.Services.Configure<YtDlpSettings>(builder.Configuration.GetSection("YtDlpSettings"));
@@ -73,10 +79,16 @@ using (var scope = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
     app.UseHttpsRedirection(); 
 }
+
+// Configuração do Swagger em todos os ambientes
+app.UseSwagger();
+app.UseSwaggerUI(c => 
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "FlutterStart API V1");
+    c.RoutePrefix = string.Empty;
+});
 
 // Garante que a pasta wwwroot/imagens exista
 var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
