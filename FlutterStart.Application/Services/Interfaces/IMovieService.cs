@@ -7,5 +7,5 @@ public interface IMovieService
 {
     Task<List<MovieResponseDto>> GetAllAsync();
     Task<MovieResponseDto> CreateMovieAsync(MovieCreateDto dto);
-    Task<MovieResponseDto> UploadTrailerAsync(int movieId, IFormFile trailerFile);
+    Task<MovieResponseDto> UploadTrailerAsync(MovieUpdateTrailerDto updateTrailerDto);
 }

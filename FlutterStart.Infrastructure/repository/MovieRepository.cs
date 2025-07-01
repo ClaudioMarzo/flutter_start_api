@@ -29,19 +29,19 @@ public class MovieRepository : IMovieRepository
         return Task.FromResult(movies);
     }
 
-    public Task<Movie> GetByIdAsync(int id)
+    public Task<Movie?> GetByIdAsync(int id)
     {
-        throw new NotImplementedException();
+        return _context.Movies.AsTracking().FirstOrDefaultAsync(m => m.Id == id);
     }
 
     public Task<Movie?> GetMovieByIMDB(string IMDB)
     {
-        var movie = _context.Movies.AsNoTracking().FirstOrDefault(m => m.IMDB == IMDB);
-        return Task.FromResult(movie);
+        return _context.Movies.AsNoTracking().FirstOrDefaultAsync(m => m.IMDB == IMDB);
     }
 
-    public Task<Movie> UploadTrailerAsync(Movie movie)
+    public async Task<Movie> UploadTrailerAsync(Movie movie)
     {
-        throw new NotImplementedException();
+        await _context.SaveChangesAsync();
+        return movie;
     }
 }

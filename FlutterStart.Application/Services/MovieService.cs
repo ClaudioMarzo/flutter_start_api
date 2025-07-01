@@ -116,8 +116,42 @@ public class MovieService : IMovieService
         }
     }
 
-    public Task<MovieResponseDto> UploadTrailerAsync(int movieId, IFormFile trailerFile)
+    public async Task<MovieResponseDto> UploadTrailerAsync(MovieUpdateTrailerDto updateTrailerDto)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var movieExist = await _movieRepository.GetByIdAsync(updateTrailerDto.Id);
+            if (movieExist == null)
+                throw new NotFoundException("Filme não encontrado");
+
+            MovieUploadResultDto uploadResult;
+
+            _logger.LogInformation("Ambiente de produção detectado. Enviando imagem para o armazenamento.");
+            var videoUploadResult = await _cloudinaryService.UploadVideoAsync(updateTrailerDto.TrailerMP4!, "movies");
+            uploadResult = new MovieUploadResultDto { Url = videoUploadResult.Url, PublicId = string.Empty };
+            if (string.IsNullOrEmpty(uploadResult.Url))
+                throw new InvalidOperationException("Erro ao salvar o trailer do filme. Verifique o arquivo enviado.");
+
+            movieExist.TrailerUrl = uploadResult.Url;
+            movieExist.UpdatedAt = DateTime.UtcNow;
+            
+            _logger.LogInformation("Atualizando trailer do filme: {Title}", movieExist.Title);
+            var updatedMovie = await _movieRepository.UploadTrailerAsync(movieExist);
+
+            if (updatedMovie == null)
+                throw new NotFoundException("Erro ao atualizar trailer do filme");
+
+            _logger.LogInformation("Trailer atualizado com sucesso para o filme: {Title}", updatedMovie.Title);
+            return _mapper.Map<MovieResponseDto>(updatedMovie);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao obter filme");
+            throw new ArgumentException("Erro ao obter filme", ex);
+        }
     }
 }

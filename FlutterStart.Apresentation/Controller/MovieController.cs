@@ -66,17 +66,17 @@ public class MovieController : ControllerBase
         }
     }
 
-    // [HttpPost("upload-trailer/{id}")]
-    // public async Task<IActionResult> UploadTrailer(int id, [FromForm] IFormFile trailer)
-    // {
-    //     try
-    //     {
-    //         var trailerUrl = await _movieService.UploadTrailerAsync(id, trailer);
-    //         return Ok(new { TrailerUrl = trailerUrl });
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         return BadRequest(new { message = ex.Message });
-    //     }
-    // }
+    [HttpPost("upload-trailer")]
+    public async Task<IActionResult> UploadTrailer([FromForm] MovieUpdateTrailerDto trailer)
+    {
+        try
+        {
+            var trailerUrl = await _movieService.UploadTrailerAsync(trailer);
+            return Ok(new { TrailerUrl = trailerUrl });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
