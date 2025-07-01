@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using FlutterStart.Application.DTO.Movie;
 using FlutterStart.Application.Services.Interfaces;
+using FlutterStart.Application.Exceptions;
 
 namespace FlutterStart.Presentation.Controller;
 
@@ -34,23 +35,48 @@ public class MovieController : ControllerBase
     }
 
     [HttpPost("movies-create")]
-    public async Task<IActionResult> Post([FromForm] MovieCreateDto dto)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CreateMovie([FromForm] MovieCreateDto dto)
     {
-        var movie = await _movieService.CreateMovieAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = movie.Id }, movie);
-    }
-
-    [HttpPost("upload-trailer/{id}")]
-    public async Task<IActionResult> UploadTrailer(int id, [FromForm] IFormFile trailer)
-    {
+        _logger.LogInformation("Criando filme: {Title}", dto.Title);
         try
         {
-            var trailerUrl = await _movieService.UploadTrailerAsync(id, trailer);
-            return Ok(new { TrailerUrl = trailerUrl });
+            var movie = await _movieService.CreateMovieAsync(dto);
+            return CreatedAtAction(nameof(GetById), new { id = movie.Id }, movie);
+        }
+        catch (ConflictException ex)
+        {
+            _logger.LogWarning(ex, "Conflito ao criar filme");
+            return Conflict(new { message = ex.Message });
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Filme não encontrado");
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Argumento inválido ao criar filme");
+            return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Erro ao criar filme");
+            return StatusCode(500, "Erro interno do servidor");
         }
     }
+
+    // [HttpPost("upload-trailer/{id}")]
+    // public async Task<IActionResult> UploadTrailer(int id, [FromForm] IFormFile trailer)
+    // {
+    //     try
+    //     {
+    //         var trailerUrl = await _movieService.UploadTrailerAsync(id, trailer);
+    //         return Ok(new { TrailerUrl = trailerUrl });
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return BadRequest(new { message = ex.Message });
+    //     }
+    // }
 }

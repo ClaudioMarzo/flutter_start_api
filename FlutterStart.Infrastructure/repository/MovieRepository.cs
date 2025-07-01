@@ -1,6 +1,7 @@
-using Microsoft.AspNetCore.Http;
 using FlutterStart.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using FlutterStart.Infrastructure.Context;
 using FlutterStart.Infrastructure.Repository.Interfaces;
 
 namespace FlutterStart.Infrastructure.Repository;
@@ -8,26 +9,35 @@ namespace FlutterStart.Infrastructure.Repository;
 
 public class MovieRepository : IMovieRepository
 {
+    private readonly FlutterStartDbContext _context;
     private readonly ILogger<MovieRepository> _logger;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-    public MovieRepository(ILogger<MovieRepository> logger, IHttpContextAccessor httpContextAccessor)
+    public MovieRepository(ILogger<MovieRepository> logger, FlutterStartDbContext context)
     {
         _logger = logger;
-        _httpContextAccessor = httpContextAccessor;
+        _context = context;
     }
     public Task<Movie> CreateMovieAsync(Movie movie)
     {
-        throw new NotImplementedException();
+        _context.Movies.Add(movie);
+        _context.SaveChanges();
+        return Task.FromResult(movie);
     }
 
     public Task<List<Movie>> GetAllAsync()
     {
-        throw new NotImplementedException();
+        var movies = _context.Movies.AsNoTracking().OrderBy(m => m.Id).ToList();
+        return Task.FromResult(movies);
     }
 
     public Task<Movie> GetByIdAsync(int id)
     {
         throw new NotImplementedException();
+    }
+
+    public Task<Movie?> GetMovieByIMDB(string IMDB)
+    {
+        var movie = _context.Movies.AsNoTracking().FirstOrDefault(m => m.IMDB == IMDB);
+        return Task.FromResult(movie);
     }
 
     public Task<Movie> UploadTrailerAsync(Movie movie)

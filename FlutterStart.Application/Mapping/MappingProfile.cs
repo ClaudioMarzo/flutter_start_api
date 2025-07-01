@@ -2,6 +2,7 @@ using AutoMapper;
 using FlutterStart.Application.DTO;
 using FlutterStart.Domain.Entities;
 using FlutterStart.Application.DTO.Book;
+using FlutterStart.Application.DTO.Movie;
 
 namespace FlutterStart.Application.Mapping;
 
@@ -34,5 +35,23 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Dimensions, opt => opt.MapFrom(src => src.Dimensions))
             .ForMember(dest => dest.Location, opt => opt.MapFrom(src => src.Location))
             .ForMember(dest => dest.IsRented, opt => opt.MapFrom(src => src.IsRented));
+            
+        CreateMap<Movie, MovieResponseDto>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.IMDB, opt => opt.MapFrom(src => src.IMDB))
+            .ForMember(dest => dest.Title, opt => opt.MapFrom(src => src.Title))
+            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
+            .ForMember(dest => dest.Year, opt => opt.MapFrom(src => src.Year))
+            .ForMember(dest => dest.Language, opt => opt.MapFrom(src => src.Language))
+            .ForMember(dest => dest.DurationMinutes, opt => opt.MapFrom(src => src.DurationMinutes))
+            .ForMember(dest => dest.Genre, opt => opt.MapFrom(src => src.Genre))
+            .ForMember(dest => dest.Director, opt => opt.MapFrom(src => src.Director))
+            .ForMember(dest => dest.Cast, opt => opt.MapFrom(src => src.Cast))
+            .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive))
+            .ForMember(dest => dest.PosterUrl, opt => opt.MapFrom(src => src.PosterUrl))
+            .ForMember(dest => dest.TrailerUrl, opt => opt.MapFrom(src => src.TrailerUrl))
+            .ForMember(dest => dest.LoanDate, opt => opt.MapFrom(src => src.CreatedAt))
+            .ForMember(dest => dest.ReturnDate, opt => opt.MapFrom(src => src.UpdatedAt));
+
     }
 }

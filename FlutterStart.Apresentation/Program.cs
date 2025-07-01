@@ -66,6 +66,8 @@ void configDependencyInjection(WebApplicationBuilder builder)
     builder.Services.AddScoped<IFileStorageService, FileStorageService>();
     builder.Services.AddScoped<IUrlConversionService, UrlConversionService>();
     builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+    builder.Services.AddScoped<IMovieService, MovieService>();
+    builder.Services.AddScoped<IMovieRepository, MovieRepository>();
 }
 
 var app = builder.Build();
@@ -77,10 +79,6 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection(); 
-}
 
 // Configuração do Swagger em todos os ambientes
 app.UseSwagger();
@@ -97,6 +95,12 @@ Directory.CreateDirectory(imagensPath);
 
 var downloadsPath = Path.Combine(Directory.GetCurrentDirectory(), "downloads");
 Directory.CreateDirectory(downloadsPath);
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(

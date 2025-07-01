@@ -5,7 +5,7 @@ namespace FlutterStart.Application.Services.Interfaces;
 
 public interface IMovieService
 {
-    Task<IEnumerable<MovieReadDto>> GetAllAsync();
-    Task<MovieReadDto> CreateMovieAsync(MovieCreateDto dto);
-    Task<MovieReadDto> UploadTrailerAsync(int movieId, IFormFile trailerFile);
+    Task<List<MovieResponseDto>> GetAllAsync();
+    Task<MovieResponseDto> CreateMovieAsync(MovieCreateDto dto);
+    Task<MovieResponseDto> UploadTrailerAsync(int movieId, IFormFile trailerFile);
 }

@@ -111,6 +111,7 @@ public class FlutterStartDbContext : DbContext
         {
             b.ToTable("Movies");
             b.HasKey(x => x.Id);
+            b.Property(x => x.IMDB).IsRequired();
             b.Property(x => x.Title).IsRequired();
             b.Property(x => x.Director).IsRequired();
             b.Property(x => x.Year).IsRequired();

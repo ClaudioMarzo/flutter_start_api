@@ -15,7 +15,7 @@ public class CloudinaryService : ICloudinaryService
 
     public CloudinaryService(IConfiguration configuration, ILogger<CloudinaryService> logger)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logger = logger;
         var account = new Account(
             configuration["Cloudinary:CloudName"],
             configuration["Cloudinary:ApiKey"],
