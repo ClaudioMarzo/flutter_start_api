@@ -5,6 +5,7 @@ using FlutterStart.Application.Services.Interfaces;
 namespace FlutterStart.Presentation.Controller;
 
 [ApiController]
+[Route("[controller]")]
 public class MovieController : ControllerBase
 {
     private readonly IMovieService _movieService;

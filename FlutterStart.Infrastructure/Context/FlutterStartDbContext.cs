@@ -9,6 +9,7 @@ public class FlutterStartDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Book> Books { get; set; }
     public DbSet<Loan> Loans { get; set; }
+    public DbSet<Movie> Movies { get; set; } 
 
     public FlutterStartDbContext(DbContextOptions<FlutterStartDbContext> options) : base(options) { }
 
@@ -105,6 +106,22 @@ public class FlutterStartDbContext : DbContext
                 .WithMany(x => x.Loans)
                 .HasForeignKey(x => x.BookId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Movie>(b =>
+        {
+            b.ToTable("Movies");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Title).IsRequired();
+            b.Property(x => x.Director).IsRequired();
+            b.Property(x => x.Year).IsRequired();
+            b.Property(x => x.Language).IsRequired();
+            b.Property(x => x.DurationMinutes).IsRequired();
+            b.Property(x => x.Genre).IsRequired();
+            b.Property(x => x.Director).IsRequired();
+            b.Property(x => x.Cast).IsRequired();
+            b.Property(x => x.IsActive).HasDefaultValue(true);
+            b.Property(x => x.PosterUrl).IsRequired();
+            b.Property(x => x.TrailerUrl).IsRequired();
         });
     }
 }

@@ -7,6 +7,7 @@ using FlutterStart.Application.Services.Interfaces;
 namespace FlutterStart.Apresentation.Controller;
 
 [ApiController]
+[Route("[controller]")]
 public class BookController : ControllerBase
 {
     private readonly IBookService _bookService;
