@@ -120,6 +120,12 @@ public class MovieService : IMovieService
             MovieUploadResultDto uploadResult;
             try
             {
+                if (updateTrailerDto.PostImage!= null)
+                {
+                    _logger.LogInformation("Ambiente de produção detectado. Enviando imagem para o armazenamento.");
+                    var imageUploadResult = await _cloudinaryService.UploadImageAsync(updateTrailerDto.PostImage, "movies");
+                    movieExist.PosterUrl = imageUploadResult.Url;
+                }
                 _logger.LogInformation("Ambiente de produção detectado. Enviando trailer para o armazenamento.");
                 var videoUploadResult = await _cloudinaryService.UploadVideoAsync(updateTrailerDto.TrailerMP4!, "movies");
                 uploadResult = new MovieUploadResultDto { Url = videoUploadResult.Url, PublicId = videoUploadResult.PublicId ?? string.Empty };

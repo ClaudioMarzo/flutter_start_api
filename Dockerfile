@@ -24,6 +24,7 @@ RUN mkdir -p /app/downloads && chmod 777 /app/downloads
 
 COPY --from=build /app/publish .
 COPY yt-dlp_linux /app/yt-dlp_linux
+COPY cookies.txt /app/cookies.txt
 RUN chmod +x /app/yt-dlp_linux
 
 ENV DOTNET_RUNNING_IN_CONTAINER=true

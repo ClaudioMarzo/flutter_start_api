@@ -114,7 +114,21 @@ public class ProcessRunner : IProcessRunner
             _logger.LogInformation("Caminho de download relativo, convertendo para absoluto: {DownloadFolder}", downloadFolder);
             downloadFolder = Path.Combine(_env.ContentRootPath, downloadFolder);
         }
-        Directory.CreateDirectory(downloadFolder);
+        try
+        {
+            Directory.CreateDirectory(downloadFolder);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao criar a pasta de downloads: {DownloadFolder}", downloadFolder);
+            return new YtDlpResponseDto
+            {
+                Message = "Falha ao criar a pasta de downloads",
+                Success = false,
+                Output = string.Empty,
+                Error = $"Erro ao criar a pasta de downloads: {ex.Message}"
+            };
+        }
 
         // Montar template de saída: ex: downloads/video.%(ext)s ou baseado em ID
         // Para evitar conflito entre execuções simultâneas, podemos usar um subdiretório ou GUID
@@ -122,19 +136,41 @@ public class ProcessRunner : IProcessRunner
         Directory.CreateDirectory(uniqueSubfolder);
         string outputTemplate = Path.Combine(uniqueSubfolder, "%(id)s.%(ext)s");
         _logger.LogInformation("Template de saída definido como: {OutputTemplate}", outputTemplate);
+
+        // Caminho do arquivo de cookies 
+        string cookiesPath = "/app/cookies.txt";
+        string cookiesArg = string.Empty;
+        if (File.Exists(cookiesPath))
+        {
+            cookiesArg = $"--cookies {cookiesPath} ";
+            _logger.LogInformation("Arquivo de cookies encontrado em: {CookiesPath}", cookiesPath);
+        }
+        else
+        {
+            _logger.LogWarning("Arquivo de cookies não encontrado em: {CookiesPath}. Prosseguindo sem cookies.", cookiesPath);
+        }
+
+        string ytDlpArgs;
+        if (format == "mp3")
+        {
+            ytDlpArgs = $"{cookiesArg}--extract-audio --audio-format mp3 -o \"{outputTemplate}\" {url}";
+        }
+        else
+        {
+            ytDlpArgs = $"{cookiesArg}-f best -o \"{outputTemplate}\" {url}";
+        }
+
         var psi = new ProcessStartInfo
         {
             FileName = exePath,
-            Arguments = format == "mp3"
-                    ? $"--extract-audio --audio-format mp3 -o \"{outputTemplate}\" {url}"
-                    : $"-f best -o \"{outputTemplate}\" {url}",
+            Arguments = ytDlpArgs,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
-        _logger.LogInformation("Executando yt-dlp: {ExePath} {Args}", psi.FileName, string.Join(' ', psi.ArgumentList));
+        _logger.LogInformation("Executando yt-dlp: {ExePath} {Args}", psi.FileName, psi.Arguments);
 
         var outputSb = new StringBuilder();
         var errorSb = new StringBuilder();

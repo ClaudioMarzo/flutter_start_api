@@ -101,14 +101,14 @@ app.UseSwaggerUI(c =>
 });
 
 
-var downloadsPath = Path.Combine(Directory.GetCurrentDirectory(), "downloads");
-Directory.CreateDirectory(downloadsPath);
 
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
 
+var downloadsPath = Path.Combine(Directory.GetCurrentDirectory(), "downloads");
+Directory.CreateDirectory(downloadsPath);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(

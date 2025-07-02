@@ -84,13 +84,13 @@ public class MovieController : ControllerBase
         }
     }
 
-    [HttpPost("upload-trailer")]
-    public async Task<IActionResult> UploadTrailer([FromForm] MovieUpdateTrailerDto trailer)
+    [HttpPost("upload-media")]
+    public async Task<IActionResult> UploadTrailer([FromForm] MovieUpdateTrailerDto media)
     {
         try
         {
-            var trailerUrl = await _movieService.UploadTrailerAsync(trailer);
-            return Ok(new { TrailerUrl = trailerUrl });
+            var mediaResponse = await _movieService.UploadTrailerAsync(media);
+            return Ok(new { TrailerUrl = mediaResponse });
         }
         catch (ConflictException ex)
         {
