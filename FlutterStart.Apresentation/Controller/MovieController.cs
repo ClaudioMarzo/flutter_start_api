@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using FlutterStart.Application.DTO.Movie;
-using FlutterStart.Application.Services.Interfaces;
 using FlutterStart.Application.Exceptions;
+using FlutterStart.Application.Services.Interfaces;
 
 namespace FlutterStart.Presentation.Controller;
 
@@ -18,7 +18,7 @@ public class MovieController : ControllerBase
         _movieService = movieService;
     }
 
-    [HttpGet]
+    [HttpGet("movies")]
     [Produces("application/json")]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -43,24 +43,48 @@ public class MovieController : ControllerBase
         }
     }
 
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
+    [HttpGet("{title}")]
+    [Produces("application/json")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(typeof(List<MovieResponseDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetByTitle(string title)
     {
-        var movies = await _movieService.GetAllAsync();
-        var movie = movies.FirstOrDefault(m => m.Id == id);
-        if (movie == null) return NotFound();
-        return Ok(movie);
+        try
+        {
+            var movies = await _movieService.GetAllAsync();
+
+            _logger.LogInformation("Filmes encontrados: {Count} para o título: {Title}", movies.Count, title);
+            return Ok(movies);
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Filme(s) não encontrado(s)");
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao buscar filme por título: {Title}", title);
+            return StatusCode(500, "Erro interno do servidor");
+
+        }
     }
 
     [HttpPost("movies-create")]
     [Consumes("multipart/form-data")]
+    [Produces("application/json")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> CreateMovie([FromForm] MovieCreateDto dto)
     {
         _logger.LogInformation("Criando filme: {Title}", dto.Title);
         try
         {
             var movie = await _movieService.CreateMovieAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = movie.Id }, movie);
+            return CreatedAtAction(nameof(GetByTitle), new { title = movie.Title }, movie);
         }
         catch (ConflictException ex)
         {
@@ -85,6 +109,12 @@ public class MovieController : ControllerBase
     }
 
     [HttpPost("upload-media")]
+    [Consumes("multipart/form-data")]
+    [Produces("application/json")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> UploadTrailer([FromForm] MovieUpdateTrailerDto media)
     {
         try

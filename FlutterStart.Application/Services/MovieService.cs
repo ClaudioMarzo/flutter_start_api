@@ -108,60 +108,92 @@ public class MovieService : IMovieService
             throw;
         }
     }
-
     public async Task<MovieResponseDto> UploadTrailerAsync(MovieUpdateTrailerDto updateTrailerDto)
     {
         try
         {
-            var movieExist = await _movieRepository.GetByIdAsync(updateTrailerDto.Id);
-            if (movieExist == null)
-                throw new NotFoundException("Filme não encontrado");
-
-            MovieUploadResultDto uploadResult;
-            try
+            bool isPostImageEmpty = updateTrailerDto.PostImage == null || updateTrailerDto.PostImage.Length == 0;
+            bool isTrailerMP4Empty = updateTrailerDto.TrailerMP4 == null || updateTrailerDto.TrailerMP4.Length == 0;
+            if (isPostImageEmpty && isTrailerMP4Empty)
             {
-                if (updateTrailerDto.PostImage!= null)
-                {
-                    _logger.LogInformation("Ambiente de produção detectado. Enviando imagem para o armazenamento.");
-                    var imageUploadResult = await _cloudinaryService.UploadImageAsync(updateTrailerDto.PostImage, "movies");
-                    movieExist.PosterUrl = imageUploadResult.Url;
-                }
-                _logger.LogInformation("Ambiente de produção detectado. Enviando trailer para o armazenamento.");
-                var videoUploadResult = await _cloudinaryService.UploadVideoAsync(updateTrailerDto.TrailerMP4!, "movies");
-                uploadResult = new MovieUploadResultDto { Url = videoUploadResult.Url, PublicId = videoUploadResult.PublicId ?? string.Empty };
-            }catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao processar o trailer do filme");
-                throw new ArgumentException("Erro ao processar o trailer do filme", ex);
+                _logger.LogWarning("Nenhum arquivo enviado para atualização do trailer");
+                throw new ArgumentException("Nenhum arquivo enviado para atualização do trailer");
             }
 
-            if (string.IsNullOrEmpty(uploadResult.Url))
-                throw new InvalidOperationException("Erro ao salvar o trailer do filme. Verifique o arquivo enviado.");
+            var movieExist = await _movieRepository.GetByIdAsync(updateTrailerDto.Id)
+                ?? throw new NotFoundException("Filme não encontrado");
 
-            movieExist.TrailerUrl = uploadResult.Url;
+            // Atualiza imagem se enviada
+            if (!isPostImageEmpty)
+            {
+                try
+                {
+                    var imageUploadResult = await _cloudinaryService.UploadImageAsync(updateTrailerDto.PostImage!, "movies");
+                    movieExist.PosterUrl = imageUploadResult.Url;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erro ao processar a imagem do filme");
+                    throw new ArgumentException("Erro ao processar a imagem do filme", ex);
+                }
+            }
+
+            // Atualiza trailer se enviado
+            if (!isTrailerMP4Empty)
+            {
+                try
+                {
+                    var videoUploadResult = await _cloudinaryService.UploadVideoAsync(updateTrailerDto.TrailerMP4!, "movies");
+                    if (string.IsNullOrEmpty(videoUploadResult.Url))
+                        throw new InvalidOperationException("Erro ao salvar o trailer do filme. Verifique o arquivo enviado.");
+                    movieExist.TrailerUrl = videoUploadResult.Url;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erro ao processar o trailer do filme");
+                    throw new ArgumentException("Erro ao processar o trailer do filme", ex);
+                }
+            }
+
             movieExist.UpdatedAt = DateTime.UtcNow;
 
             _logger.LogInformation("Atualizando trailer do filme: {Title}", movieExist.Title);
-            var updatedMovie = await _movieRepository.UploadTrailerAsync(movieExist);
-
-            if (updatedMovie == null)
-                throw new InvalidOperationException("Erro ao atualizar trailer do filme");
+            var updatedMovie = await _movieRepository.UploadTrailerAsync(movieExist)
+                ?? throw new InvalidOperationException("Erro ao atualizar trailer do filme");
 
             _logger.LogInformation("Trailer atualizado com sucesso para o filme: {Title}", updatedMovie.Title);
             return _mapper.Map<MovieResponseDto>(updatedMovie);
+        }
+        catch (ArgumentException) { throw; }
+        catch (NotFoundException) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro inesperado ao atualizar trailer do filme");
+            throw new InvalidOperationException("Erro inesperado ao atualizar trailer do filme", ex);
+        }
+    }
+    
+    public async Task<List<MovieResponseDto>> GetMovieByTitleAsync(string title)
+    {
+        _logger.LogInformation("Buscando livro por título: {Title}", title);
+        try
+        {
+            var movies = await _movieRepository.GetMovieByTitleAsync(title);
+            if (movies == null || !movies.Any())
+            {
+                _logger.LogWarning("Nenhum filme encontrado: {Title}", title);
+                throw new NotFoundException($"Nenhum filme encontrado com título '{title}'");
+            }
+            return _mapper.Map<List<MovieResponseDto>>(movies);
         }
         catch (NotFoundException)
         {
             throw;
         }
-        catch (ArgumentException)
-        {
-            throw;
-        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro inesperado ao atualizar trailer do filme");
-            throw new InvalidOperationException("Erro inesperado ao atualizar trailer do filme", ex);
+            _logger.LogError(ex, "Erro ao buscar livro por título: {Title}", title);
+            throw new Exception("Erro interno do servidor", ex);
         }
     }
 }

@@ -39,6 +39,18 @@ public class MovieRepository : IMovieRepository
         return _context.Movies.AsNoTracking().FirstOrDefaultAsync(m => m.IMDB == IMDB);
     }
 
+    public async Task<List<Movie>> GetMovieByTitleAsync(string title)
+    {
+        var sql = @"SELECT * FROM Movies WHERE 
+                similarity(unaccent(Title), unaccent({0})) > 0.3 
+                ORDER BY similarity(unaccent(Title), unaccent({0})) DESC";
+        var movies = await _context.Movies
+            .FromSqlRaw(sql, title)
+            .AsNoTracking()
+            .ToListAsync();
+        return movies;
+    }
+
     public async Task<Movie> UploadTrailerAsync(Movie movie)
     {
         await _context.SaveChangesAsync();

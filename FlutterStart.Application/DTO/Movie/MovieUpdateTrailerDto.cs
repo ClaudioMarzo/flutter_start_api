@@ -8,7 +8,6 @@ public class MovieUpdateTrailerDto
     [Required(ErrorMessage = "O ID do filme é obrigatório.")]
     public int Id { get; set; }
 
-    [Required(ErrorMessage = "O arquivo de vídeo é obrigatório.")]
     public IFormFile? TrailerMP4 { get; set; }
 
     public IFormFile? PostImage { get; set; }
