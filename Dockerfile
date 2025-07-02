@@ -15,26 +15,39 @@ RUN dotnet publish ./FlutterStart.Apresentation/FlutterStart.Apresentation.cspro
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
+# Instalar dependências do sistema
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip ffmpeg && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y \
+    python3 \
+    python3-pip \
+    ffmpeg \
+    curl \
+    wget \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /app/downloads && chmod 777 /app/downloads
+# Criar diretório de downloads com permissões adequadas
+RUN mkdir -p /app/downloads && \
+    chmod 777 /app/downloads && \
+    chown -R app:app /app/downloads || true
 
 COPY --from=build /app/publish .
 
+# Copiar executáveis do yt-dlp
 COPY yt-dlp_linux /app/yt-dlp_linux
 RUN chmod +x /app/yt-dlp_linux
 
 COPY yt-dlp_windows.exe /app/yt-dlp_windows.exe
 RUN chmod +x /app/yt-dlp_windows.exe
 
-# Copiar cookies se disponível (comentar esta linha se não tiver cookies)
-COPY cookies.txt /app/cookies.txt
+# Copiar cookies se disponível (opcional para desenvolvimento)
+# COPY cookies.txt /app/cookies.txt
 
+# Configurar variáveis de ambiente
 ENV DOTNET_RUNNING_IN_CONTAINER=TRUE
 ENV ASPNETCORE_URLS=http://+:8080
+ENV TZ=UTC
+ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8080
 

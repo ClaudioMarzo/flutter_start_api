@@ -187,13 +187,18 @@ public class ProcessRunner : IProcessRunner
             try
             {
                 process.Kill(true);
+                _logger.LogWarning("Processo yt-dlp excedeu timeout de {TimeoutSeconds}s", _settings.TimeoutSeconds);
+                return (outputSb.ToString(), errorSb.ToString(), "Timeout excedido");
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Processo yt-dlp excedeu timeout de {TimeoutSeconds}s", _settings.TimeoutSeconds);
+                _logger.LogWarning(ex, "Erro ao finalizar processo yt-dlp após timeout");
                 return (outputSb.ToString(), errorSb.ToString(), ex.Message);
             }
         }
+
+        // Aguardar um pouco mais para garantir que os arquivos sejam escritos
+        await Task.Delay(2000);
 
         return (outputSb.ToString(), errorSb.ToString(), null);
     }
@@ -210,11 +215,40 @@ public class ProcessRunner : IProcessRunner
         try
         {
             _logger.LogInformation("Procurando arquivos baixados em: {UniqueSubfolder}", uniqueSubfolder);
-            var files = Directory.GetFiles(uniqueSubfolder);
-            if (files.Length > 0)
+            
+            // Tentar várias vezes com delay, pois o arquivo pode demorar para aparecer
+            for (int attempt = 0; attempt < 5; attempt++)
             {
-                return files.OrderByDescending(f => File.GetLastWriteTimeUtc(f)).First();
+                if (Directory.Exists(uniqueSubfolder))
+                {
+                    var files = Directory.GetFiles(uniqueSubfolder, "*", SearchOption.AllDirectories);
+                    
+                    // Filtrar arquivos temporários
+                    var validFiles = files.Where(f => 
+                        !Path.GetFileName(f).StartsWith(".") &&
+                        !f.EndsWith(".part") &&
+                        !f.EndsWith(".tmp") &&
+                        !f.EndsWith(".ytdl")
+                    ).ToArray();
+                    
+                    if (validFiles.Length > 0)
+                    {
+                        var latestFile = validFiles.OrderByDescending(f => File.GetLastWriteTimeUtc(f)).First();
+                        _logger.LogInformation("Arquivo encontrado: {FilePath}", latestFile);
+                        return latestFile;
+                    }
+                    
+                    _logger.LogInformation("Tentativa {Attempt}: Nenhum arquivo encontrado ainda, aguardando...", attempt + 1);
+                    Thread.Sleep(1000); // Aguardar 1 segundo antes da próxima tentativa
+                }
+                else
+                {
+                    _logger.LogWarning("Diretório não existe: {UniqueSubfolder}", uniqueSubfolder);
+                    break;
+                }
             }
+            
+            _logger.LogWarning("Nenhum arquivo válido encontrado após 5 tentativas");
         }
         catch (Exception ex)
         {
