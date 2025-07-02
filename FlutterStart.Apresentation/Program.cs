@@ -13,6 +13,18 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using FlutterStart.Infrastructure.Services.Interfaces;
 using FlutterStart.Infrastructure.Repository.Interfaces;
 
+// Garante que a pasta wwwroot e wwwroot/images existam antes de criar o builder
+var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+if (!Directory.Exists(wwwrootPath))
+{
+    Directory.CreateDirectory(wwwrootPath);
+}
+var imagensPath = Path.Combine(wwwrootPath, "images");
+if (!Directory.Exists(imagensPath))
+{
+    Directory.CreateDirectory(imagensPath);
+}
+
 var builder = WebApplication.CreateBuilder(args);
 string environment  = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
 string connectionsStrings = environment  == "Development" ? "ConnectionStrings:DefaultConnection" : "ConnectionStrings:ProductionConnection";
@@ -88,10 +100,6 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = string.Empty;
 });
 
-// Garante que a pasta wwwroot/imagens exista
-var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-var imagensPath = Path.Combine(wwwrootPath, "images");
-Directory.CreateDirectory(imagensPath);
 
 var downloadsPath = Path.Combine(Directory.GetCurrentDirectory(), "downloads");
 Directory.CreateDirectory(downloadsPath);

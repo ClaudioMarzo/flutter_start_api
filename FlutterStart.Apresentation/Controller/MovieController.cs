@@ -74,6 +74,18 @@ public class MovieController : ControllerBase
             var trailerUrl = await _movieService.UploadTrailerAsync(trailer);
             return Ok(new { TrailerUrl = trailerUrl });
         }
+        catch (ConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
         catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
