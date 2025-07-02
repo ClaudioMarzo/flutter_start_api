@@ -41,7 +41,7 @@ public class MovieService : IMovieService
 
             MovieUploadResultDto uploadResult;
 
-            if (!_env.IsDevelopment())
+            if (_env.IsDevelopment())
             {
                 _logger.LogInformation("Ambiente de desenvolvimento detectado. Salvando imagem localmente.");
                 var localPath = await _fileStorageService.SaveImageAsync(dto.Poster!, "movies");
@@ -103,10 +103,9 @@ public class MovieService : IMovieService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger.LogError(ex, "Erro ao obter filmes");
-            throw new ArgumentException("Erro ao obter filmes", ex);
+            throw;
         }
     }
 

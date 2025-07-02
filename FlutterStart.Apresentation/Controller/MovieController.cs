@@ -19,10 +19,28 @@ public class MovieController : ControllerBase
     }
 
     [HttpGet]
+    [Produces("application/json")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(typeof(List<MovieResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllMovie()
     {
-        var movies = await _movieService.GetAllAsync();
-        return Ok(movies);
+        try
+        {
+            var movies = await _movieService.GetAllAsync();
+            _logger.LogInformation("Lista de filmes obtida com sucesso. Total: {Count}", movies.Count);
+            return Ok(movies);
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Nenhum filme encontrado");
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao obter lista de filmes");
+            return StatusCode(500, "Erro interno do servidor");
+        }
     }
 
     [HttpGet("{id}")]
