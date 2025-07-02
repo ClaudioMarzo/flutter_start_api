@@ -30,6 +30,7 @@ RUN chmod +x /app/yt-dlp_linux
 COPY yt-dlp_windows.exe /app/yt-dlp_windows.exe
 RUN chmod +x /app/yt-dlp_windows.exe
 
+# Copiar cookies se disponível (comentar esta linha se não tiver cookies)
 COPY cookies.txt /app/cookies.txt
 
 ENV DOTNET_RUNNING_IN_CONTAINER=TRUE

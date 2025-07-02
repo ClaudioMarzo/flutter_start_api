@@ -49,9 +49,33 @@ public class ProcessRunner : IProcessRunner
         bool hasError = error.Contains("ERROR:");
         bool hasWarning = error.Contains("WARNING:");
         string? redirectedUrl = ExtractRedirectedUrl(output);
-        string? failureReason = error.Contains("Filename too long")
-            ? "Nome do arquivo excede o limite do sistema de arquivos."
-            : null;
+        
+        // Detectar diferentes tipos de falhas
+        string? failureReason = null;
+        if (error.Contains("Filename too long"))
+        {
+            failureReason = "Nome do arquivo excede o limite do sistema de arquivos.";
+        }
+        else if (error.Contains("HTTP Error 429"))
+        {
+            failureReason = "Muitas requisições - YouTube está limitando o acesso. Tente novamente em alguns minutos.";
+        }
+        else if (error.Contains("Sign in to confirm you're not a bot"))
+        {
+            failureReason = "YouTube requer autenticação. Cookies de navegador necessários.";
+        }
+        else if (error.Contains("Video unavailable"))
+        {
+            failureReason = "Vídeo não disponível ou foi removido.";
+        }
+        else if (error.Contains("Private video"))
+        {
+            failureReason = "Vídeo privado - acesso não autorizado.";
+        }
+        else if (error.Contains("This video is not available"))
+        {
+            failureReason = "Vídeo não disponível na sua região.";
+        }
 
         string? downloadedFilePath = TryGetDownloadedFilePath(uniqueSubfolder);
         string relativePath = BuildRelativePath(downloadedFilePath);
@@ -72,11 +96,41 @@ public class ProcessRunner : IProcessRunner
 
     private string BuildYtDlpArguments(string url, string outputTemplate, string format, string? cookiesArg)
     {
+        var baseArgs = new List<string>();
+        
+        // Adicionar cookies se disponível
+        if (!string.IsNullOrEmpty(cookiesArg))
+        {
+            baseArgs.Add(cookiesArg.Trim());
+        }
+        
+        // Adicionar argumentos para evitar rate limiting
+        baseArgs.Add("--sleep-interval 1");
+        baseArgs.Add("--max-sleep-interval 5");
+        baseArgs.Add("--sleep-subtitles 1");
+        baseArgs.Add("--retries 3");
+        baseArgs.Add("--fragment-retries 3");
+        baseArgs.Add("--retry-sleep linear=1::2");
+        
+        // Adicionar User-Agent para evitar detecção de bot
+        baseArgs.Add("--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36\"");
+        
         if (format == "mp3")
         {
-            return $"{cookiesArg}--extract-audio --audio-format mp3 -o \"{outputTemplate}\" {url}";
+            baseArgs.Add("--extract-audio");
+            baseArgs.Add("--audio-format mp3");
+            baseArgs.Add("--audio-quality 0"); // Melhor qualidade de áudio
         }
-        return $"{cookiesArg}-f best -o \"{outputTemplate}\" {url}";
+        else
+        {
+            // Usar formato melhorado ao invés de "-f best"
+            baseArgs.Add("-f \"bestvideo[height<=720]+bestaudio/best[height<=720]\"");
+        }
+        
+        baseArgs.Add($"-o \"{outputTemplate}\"");
+        baseArgs.Add($"\"{url}\"");
+        
+        return string.Join(" ", baseArgs);
     }
 
     private ProcessStartInfo BuildProcessStartInfo(string executPath, string ytDlpArgs)
@@ -180,6 +234,45 @@ public class ProcessRunner : IProcessRunner
             return downloadsParts[1].TrimStart(Path.DirectorySeparatorChar, '/', '\\');
         }
         return string.Empty;
+    }
+
+    public async Task<YtDlpResponseDto> RunYtDlpWithRetryAsync(string url, string outputTemplate, string uniqueSubfolder, string executPath, string format = "mp4", string? cookiesArg = null, int maxRetries = 3)
+    {
+        var delays = new[] { 1000, 3000, 8000 }; // 1s, 3s, 8s
+        
+        for (int attempt = 0; attempt < maxRetries; attempt++)
+        {
+            _logger.LogInformation("Tentativa {Attempt} de {MaxRetries} para URL: {Url}", attempt + 1, maxRetries, url);
+            
+            var result = await RunYtDlpAsync(url, outputTemplate, uniqueSubfolder, executPath, format, cookiesArg);
+            
+            // Se foi bem-sucedido ou não é um erro de rate limiting, retornar o resultado
+            if (result.Success || !IsRateLimitError(result.Error))
+            {
+                return result;
+            }
+            
+            // Se não é a última tentativa, aguardar antes de tentar novamente
+            if (attempt < maxRetries - 1)
+            {
+                var delay = delays[attempt];
+                _logger.LogWarning("Rate limit detectado. Aguardando {Delay}ms antes da próxima tentativa", delay);
+                await Task.Delay(delay);
+            }
+        }
+        
+        // Se todas as tentativas falharam, retornar o último resultado
+        return await RunYtDlpAsync(url, outputTemplate, uniqueSubfolder, executPath, format, cookiesArg);
+    }
+
+    private bool IsRateLimitError(string error)
+    {
+        return !string.IsNullOrEmpty(error) && (
+            error.Contains("HTTP Error 429") ||
+            error.Contains("Too Many Requests") ||
+            error.Contains("rate limit") ||
+            error.Contains("Sign in to confirm you're not a bot")
+        );
     }
 }
 

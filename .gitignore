@@ -69,3 +69,12 @@ publish/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
+
+# YouTube cookies - NEVER commit this file!
+cookies.txt
+*.cookies
+
+# yt-dlp temporary files
+*.part
+*.ytdl
+*.temp

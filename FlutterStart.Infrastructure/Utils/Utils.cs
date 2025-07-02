@@ -184,20 +184,53 @@ public class Utils : IUtils
 
     public string GetCookiesArg()
     {
-        string cookiesPath = "/app/cookies.txt";
-        if (!File.Exists(cookiesPath))
+        // Primeiro, tentar obter cookies de variável de ambiente
+        var cookiesFromEnv = Environment.GetEnvironmentVariable("YOUTUBE_COOKIES_BASE64");
+        if (!string.IsNullOrEmpty(cookiesFromEnv))
         {
-            cookiesPath = Path.Combine(AppContext.BaseDirectory, "cookies.txt");
+            try
+            {
+                var cookiesContent = Convert.FromBase64String(cookiesFromEnv);
+                var cookiesPath = Path.Combine(Path.GetTempPath(), "cookies.txt");
+                File.WriteAllBytes(cookiesPath, cookiesContent);
+                _logger.LogInformation("Cookies criados a partir da variável de ambiente: {CookiesPath}", cookiesPath);
+                return $"--cookies \"{cookiesPath}\"";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao processar cookies da variável de ambiente");
+            }
         }
-        if (File.Exists(cookiesPath))
+
+        // Tentar localizar cookies em diferentes locais
+        var possiblePaths = new[]
         {
-            _logger.LogInformation("Arquivo de cookies encontrado em: {CookiesPath}", cookiesPath);
-            return $"--cookies {cookiesPath} ";
-        }
-        else
+            "/app/cookies.txt",
+            Path.Combine(AppContext.BaseDirectory, "cookies.txt"),
+            Path.Combine(Directory.GetCurrentDirectory(), "cookies.txt"),
+            Path.Combine(_env.ContentRootPath, "cookies.txt")
+        };
+
+        foreach (var cookiesPath in possiblePaths)
         {
-            _logger.LogWarning("Arquivo de cookies não encontrado em: {CookiesPath}. Prosseguindo sem cookies.", cookiesPath);
-            return string.Empty;
+            if (File.Exists(cookiesPath))
+            {
+                _logger.LogInformation("Arquivo de cookies encontrado em: {CookiesPath}", cookiesPath);
+                
+                // Verificar se o arquivo não está vazio
+                var fileInfo = new FileInfo(cookiesPath);
+                if (fileInfo.Length > 0)
+                {
+                    return $"--cookies \"{cookiesPath}\"";
+                }
+                else
+                {
+                    _logger.LogWarning("Arquivo de cookies está vazio: {CookiesPath}", cookiesPath);
+                }
+            }
         }
+        
+        _logger.LogWarning("Arquivo de cookies não encontrado em nenhum dos caminhos: {Paths}. Prosseguindo sem cookies.", string.Join(", ", possiblePaths));
+        return string.Empty;
     }
 }

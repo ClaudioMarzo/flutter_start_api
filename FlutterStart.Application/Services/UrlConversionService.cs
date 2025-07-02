@@ -54,7 +54,27 @@ public class UrlConversionService : IUrlConversionService
             if (!Success)
                 throw new InvalidOperationException("Erro ao criar subpasta de download: " + Error);
             
-            YtDlpResponseDto result = await _processRunner.RunYtDlpAsync(input.Url, OutputTemplate, UniqueSubfolder, pathBuilder, input.Format);
+            // 5 - Obter argumentos de cookies
+            string cookiesArg = _utils.GetCookiesArg();
+            if (!string.IsNullOrEmpty(cookiesArg))
+            {
+                _logger.LogInformation("Usando cookies para autenticação no YouTube");
+            }
+            else
+            {
+                _logger.LogWarning("Nenhum cookie encontrado - pode haver limitações de rate limiting");
+            }
+            
+            // 6 - Executar yt-dlp com retry automático para rate limiting
+            YtDlpResponseDto result = await _processRunner.RunYtDlpWithRetryAsync(
+                input.Url, 
+                OutputTemplate, 
+                UniqueSubfolder, 
+                pathBuilder, 
+                input.Format, 
+                cookiesArg, 
+                maxRetries: 3
+            );
             
             _logger.LogInformation("Conversão concluída: Success={Success}", result.Success);
 
