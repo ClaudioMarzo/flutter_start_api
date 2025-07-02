@@ -19,14 +19,40 @@ namespace FlutterStart.Application.Services
 
         public async Task<YtDlpResponseDto> ConvertUrlAsync(InputConvertDto input)
         {
+            // Validação de negócio
             if (string.IsNullOrWhiteSpace(input.Url))
                 throw new ArgumentException("URL inválida", nameof(input.Url));
 
+            if (string.IsNullOrWhiteSpace(input.Format))
+                input.Format = "mp4"; // padrão de negócio
+
             _logger.LogInformation("Iniciando conversão de URL: {Url}", input.Url);
 
-            var result = await _processRunner.RunYtDlpAsync(input.Url, input.Format);
+            YtDlpResponseDto result;
+            try
+            {
+                result = await _processRunner.RunYtDlpAsync(input.Url, input.Format);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro técnico ao executar conversão de URL");
+                return new YtDlpResponseDto
+                {
+                    Success = false,
+                    Message = "Erro interno ao processar a conversão.",
+                    Error = ex.Message
+                };
+            }
 
-            _logger.LogInformation("Conversão concluída: Success={Success}", result.Success);
+            if (!result.Success)
+            {
+                // Aqui você pode traduzir erros técnicos em mensagens de negócio, se necessário
+                _logger.LogWarning("Conversão falhou: {Error}", result.Error);
+            }
+            else
+            {
+                _logger.LogInformation("Conversão concluída: Success={Success}", result.Success);
+            }
 
             return result;
         }
