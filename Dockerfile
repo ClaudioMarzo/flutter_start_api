@@ -24,10 +24,14 @@ RUN mkdir -p /app/downloads && chmod 777 /app/downloads
 
 COPY --from=build /app/publish .
 COPY yt-dlp_linux /app/yt-dlp_linux
-COPY cookies.txt /app/cookies.txt
 RUN chmod +x /app/yt-dlp_linux
 
-ENV DOTNET_RUNNING_IN_CONTAINER=true
+COPY yt-dlp_windows.exe /app/yt-dlp_windows.exe
+RUN chmod +x /app/yt-dlp_windows.exe
+
+COPY cookies.txt /app/cookies.txt
+
+ENV DOTNET_RUNNING_IN_CONTAINER=TRUE
 ENV ASPNETCORE_URLS=http://+:8080
 
 EXPOSE 8080

@@ -24,26 +24,18 @@ public class UrlConverterController : ControllerBase
     [HttpPost("convert")]
     public async Task<IActionResult> ConvertToUrl([FromBody] InputConvertDto input)
     {
-        if (!ModelState.IsValid)
-        {
-            _logger.LogWarning("Modelo inválido recebido em ConvertToUrl");
-            return BadRequest(ModelState);
-        }
         if (string.IsNullOrWhiteSpace(input.Url))
         {
             _logger.LogWarning("URL inválida recebida em ConvertToUrl");
             return BadRequest(new { message = "URL inválida" });
         }
-
         try
         {
             _logger.LogInformation("Iniciando conversão para URL: {Url}", input.Url);
             var result = await _conversionService.ConvertUrlAsync(input);
             if (!result.Success)
-            {
-                _logger.LogError("Erro ao converter URL: {ErrorMessage}", result.Error);
-                return StatusCode(500, result);
-            }
+                return BadRequest(result);
+
             _logger.LogInformation("Conversão concluída com sucesso: {Result}", result);
             return Ok(result);
         }

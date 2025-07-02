@@ -2,6 +2,7 @@ using HealthChecks.UI.Client;
 using Microsoft.EntityFrameworkCore;
 using FlutterStart.Application.Mapping;
 using FlutterStart.Application.Services;
+using FlutterStart.Infrastructure.Utils;
 using Microsoft.Extensions.FileProviders;
 using FlutterStart.Application.Interfaces;
 using FlutterStart.Infrastructure.Context;
@@ -9,6 +10,7 @@ using FlutterStart.Infrastructure.Services;
 using FlutterStart.Infrastructure.Settings;
 using FlutterStart.Infrastructure.Repository;
 using FlutterStart.Application.Services.Interfaces;
+using FlutterStart.Infrastructure.Utils.Interfaces;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using FlutterStart.Infrastructure.Services.Interfaces;
 using FlutterStart.Infrastructure.Repository.Interfaces;
@@ -80,6 +82,7 @@ void configDependencyInjection(WebApplicationBuilder builder)
     builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
     builder.Services.AddScoped<IMovieService, MovieService>();
     builder.Services.AddScoped<IMovieRepository, MovieRepository>();
+    builder.Services.AddScoped<IUtils, Utils>();
 }
 
 var app = builder.Build();

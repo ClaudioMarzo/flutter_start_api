@@ -1,25 +1,203 @@
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Hosting;
 using System.Runtime.InteropServices;
+using FlutterStart.Infrastructure.DTO;
+using FlutterStart.Infrastructure.Settings;
+using FlutterStart.Infrastructure.Utils.Interfaces;
 
-namespace FlutterStart.Infrastructure.U;
+namespace FlutterStart.Infrastructure.Utils;
 
-public static class Utils
+public class Utils : IUtils
 {
-    public static string GenerateBuildPath()
+    private readonly ILogger<Utils> _logger;
+    private readonly YtDlpSettings _settings;
+    private readonly IWebHostEnvironment _env;
+    public Utils(ILogger<Utils> logger, IOptions<YtDlpSettings> settings, IWebHostEnvironment env)
     {
-        throw new NotImplementedException();
+        _env = env;
+        _logger = logger;
+        _settings = settings.Value;
     }
 
-    public static string GenerateUniqueSubdirectory()
+    public YtDlpResponseDto GetAndValidateYtDlpExecutablePath()
     {
-        var current = AppContext.BaseDirectory;
-        var directory = Directory.GetParent(current)!.Parent!.Parent!.Parent!.Parent!.FullName;
-        var runYtDlp = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "yt-dlp.exe" : "yt-dlp";
-        return Path.Combine(directory, runYtDlp);
+        bool isRunningInContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "TRUE";
+        _logger.LogInformation("Rodando em container: {IsContainer}", isRunningInContainer);
 
+        string exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "yt-dlp_windows.exe" : "yt-dlp_linux";
+        string exePath;
+
+        if (isRunningInContainer)
+        {
+            exePath = Path.Combine("/app", exeName);
+            _logger.LogInformation("Executando em contêiner Docker. Caminho do executável: {ExePath}", exePath);
+        }
+        else
+        {
+            var baseDir = AppContext.BaseDirectory;
+            var projectRoot = Directory.GetParent(baseDir)?.Parent?.Parent?.Parent?.Parent?.FullName ?? baseDir;
+            exePath = Path.Combine(projectRoot, exeName);
+            _logger.LogInformation("Executando fora do contêiner. Caminho do executável: {ExePath}", exePath);
+        }
+
+        if (!File.Exists(exePath))
+        {
+            _logger.LogError("[GetAndValidateYtDlpExecutablePath] Executável yt-dlp não encontrado em: {ExePath}", exePath);
+            return new YtDlpResponseDto
+            {
+                Message = "Falha no processamento",
+                Success = false,
+                Output = string.Empty,
+                Error = $"Executável yt-dlp não encontrado em: {exePath}"
+            };
+        }
+        _logger.LogInformation("[GetAndValidateYtDlpExecutablePath] Executável yt-dlp encontrado em: {ExePath}", exePath);
+        return new YtDlpResponseDto
+        {
+            Message = "Executável yt-dlp encontrado",
+            Success = true,
+            Output = exePath,
+            Error = string.Empty
+        };
     }
 
-    public static bool IsValidUrl(string url)
+    public YtDlpResponseDto EnsureExecutablePermission(string exePath)
     {
-        throw new NotImplementedException();
+        _logger.LogInformation("[EnsureExecutablePermission] Garantindo permissão de execução para: {ExePath}", exePath);
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
+            {
+                var process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "/bin/chmod",
+                    Arguments = $"+x {exePath}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
+                process?.WaitForExit();
+                if (process?.ExitCode == 0)
+                {
+                    _logger.LogInformation("[EnsureExecutablePermission] Permissão de execução garantida com sucesso para: {ExePath}", exePath);
+                    return new YtDlpResponseDto
+                    {
+                        Success = true,
+                        Message = "Permissão de execução garantida com sucesso.",
+                        Output = string.Empty,
+                        Error = string.Empty
+                    };
+                }
+                _logger.LogWarning("[EnsureExecutablePermission] Falha ao garantir permissão de execução para yt-dlp. ExitCode: {ExitCode}", process?.ExitCode);
+                return new YtDlpResponseDto
+                {
+                    Success = false,
+                    Message = "Falha ao garantir permissão de execução.",
+                    Output = string.Empty,
+                    Error = $"ExitCode: {process?.ExitCode}"
+                };
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[EnsureExecutablePermission] Não foi possível garantir permissão de execução para yt-dlp");
+                return new YtDlpResponseDto
+                {
+                    Success = false,
+                    Message = "Exceção ao garantir permissão de execução.",
+                    Output = string.Empty,
+                    Error = ex.Message
+                };
+            }
+        }
+        _logger.LogInformation("[EnsureExecutablePermission] Não é necessário garantir permissão de execução em Windows.");
+        return new YtDlpResponseDto
+        {
+            Success = true,
+            Message = "No Windows, permissão de execução não é necessária.",
+            Output = string.Empty,
+            Error = string.Empty
+        };
+    }
+
+
+    public YtDlpResponseDto CreatePathDownloadsFolder()
+    {
+        string downloadFolder = _settings.DownloadFolder;
+        if (!Path.IsPathRooted(downloadFolder))
+        {
+            _logger.LogInformation("Caminho de download relativo, convertendo para absoluto: {DownloadFolder}", downloadFolder);
+            downloadFolder = Path.Combine(_env.ContentRootPath, downloadFolder);
+        }
+        _logger.LogInformation("[CreatePathDownloadsFolder] Criando pasta de downloads em: {DownloadFolder}", downloadFolder);
+        try
+        {
+            Directory.CreateDirectory(downloadFolder);
+            _logger.LogInformation("[CreatePathDownloadsFolder] Pasta de downloads criada com sucesso: {DownloadFolder}", downloadFolder);
+            return new YtDlpResponseDto
+            {
+                Success = true,
+                Message = "Sucesso ao criar a pasta de downloads",
+                Output = downloadFolder,
+                Error = string.Empty
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[CreatePathDownloadsFolder] Erro ao criar a pasta de downloads: {DownloadFolder}", downloadFolder);
+            return new YtDlpResponseDto
+            {
+                Message = "Falha ao criar a pasta de downloads",
+                Success = false,
+                Output = string.Empty,
+                Error = $"Erro ao criar a pasta de downloads: {ex.Message}"
+            };
+        }
+    }
+
+    public (bool Success, string UniqueSubfolder, string OutputTemplate, string Error) CreateDownloadSubfolder(string downloadFolder)
+    {
+        if (string.IsNullOrWhiteSpace(downloadFolder))
+        {
+            const string error = "[CreateDownloadSubfolder] O caminho do diretório de download está vazio ou nulo.";
+            _logger.LogError(error);
+            return (false, string.Empty, string.Empty, error);
+        }
+
+        try
+        {
+            string uniqueSubfolder = Path.Combine(downloadFolder, Guid.NewGuid().ToString());
+            Directory.CreateDirectory(uniqueSubfolder);
+            string outputTemplate = Path.Combine(uniqueSubfolder, "%(id)s.%(ext)s");
+            _logger.LogInformation("[CreateDownloadSubfolder] Template de saída definido como: {OutputTemplate}", outputTemplate);
+            return (true, uniqueSubfolder, outputTemplate, string.Empty);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[CreateDownloadSubfolder] Erro ao criar subpasta de download.");
+            return (false, string.Empty, string.Empty, ex.Message);
+        }
+    }
+
+    public string GetCookiesArg()
+    {
+        string cookiesPath = "/app/cookies.txt";
+        if (!File.Exists(cookiesPath))
+        {
+            cookiesPath = Path.Combine(AppContext.BaseDirectory, "cookies.txt");
+        }
+        if (File.Exists(cookiesPath))
+        {
+            _logger.LogInformation("Arquivo de cookies encontrado em: {CookiesPath}", cookiesPath);
+            return $"--cookies {cookiesPath} ";
+        }
+        else
+        {
+            _logger.LogWarning("Arquivo de cookies não encontrado em: {CookiesPath}. Prosseguindo sem cookies.", cookiesPath);
+            return string.Empty;
+        }
     }
 }
