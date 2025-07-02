@@ -62,7 +62,6 @@ iisexpress/
 
 # Libraries & tools
 *.dll
-*.exe
 *.pdb
 
 # Publish output

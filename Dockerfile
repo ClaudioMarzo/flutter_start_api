@@ -23,6 +23,7 @@ RUN apt-get update && \
 RUN mkdir -p /app/downloads && chmod 777 /app/downloads
 
 COPY --from=build /app/publish .
+
 COPY yt-dlp_linux /app/yt-dlp_linux
 RUN chmod +x /app/yt-dlp_linux
 
