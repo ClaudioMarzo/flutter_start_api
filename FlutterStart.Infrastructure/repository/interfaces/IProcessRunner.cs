@@ -5,4 +5,5 @@ public interface IProcessRunner
 {
     Task<YtDlpResponseDto> RunYtDlpAsync(string url, string outputTemplate, string uniqueSubfolder, string executPath, string format = "mp4", string? cookiesArg = null);
     Task<YtDlpResponseDto> RunYtDlpWithRetryAsync(string url, string outputTemplate, string uniqueSubfolder, string executPath, string format = "mp4", string? cookiesArg = null, int maxRetries = 3);
+    Task<YtDlpResponseDto> RunYtDlpWithFallbackStrategiesAsync(string url, string outputTemplate, string uniqueSubfolder, string executPath, string format = "mp4", string? cookiesArg = null);
 }

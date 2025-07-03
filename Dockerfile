@@ -40,6 +40,10 @@ RUN chmod +x /app/yt-dlp_linux
 COPY yt-dlp_windows.exe /app/yt-dlp_windows.exe
 RUN chmod +x /app/yt-dlp_windows.exe
 
+# Copiar script de configuração de cookies
+COPY setup-render-cookies.sh /app/setup-render-cookies.sh
+RUN chmod +x /app/setup-render-cookies.sh
+
 # Copiar cookies se disponível (opcional para desenvolvimento)
 # COPY cookies.txt /app/cookies.txt
 
@@ -51,4 +55,8 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "FlutterStart.Apresentation.dll"]
+# Script de inicialização que configura cookies e inicia a aplicação
+RUN echo '#!/bin/bash\n/app/setup-render-cookies.sh\nexec dotnet FlutterStart.Apresentation.dll' > /app/start.sh && \
+    chmod +x /app/start.sh
+
+ENTRYPOINT ["/app/start.sh"]

@@ -65,15 +65,14 @@ public class UrlConversionService : IUrlConversionService
                 _logger.LogWarning("Nenhum cookie encontrado - pode haver limitações de rate limiting");
             }
             
-            // 6 - Executar yt-dlp com retry automático para rate limiting
-            YtDlpResponseDto result = await _processRunner.RunYtDlpWithRetryAsync(
+            // 6 - Executar yt-dlp com estratégias múltiplas para contornar bloqueios
+            YtDlpResponseDto result = await _processRunner.RunYtDlpWithFallbackStrategiesAsync(
                 input.Url, 
                 OutputTemplate, 
                 UniqueSubfolder, 
                 pathBuilder, 
                 input.Format, 
-                cookiesArg, 
-                maxRetries: 3
+                cookiesArg
             );
             
             _logger.LogInformation("Conversão concluída: Success={Success}", result.Success);

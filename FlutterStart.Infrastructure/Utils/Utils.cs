@@ -230,6 +230,18 @@ public class Utils : IUtils
             }
         }
         
+        // Como último recurso, tentar usar cookies do navegador (se disponível)
+        _logger.LogInformation("Nenhum arquivo de cookies encontrado. Tentando extrair do navegador...");
+        try
+        {
+            // Retornar argumento para extrair cookies do Chrome (mais comum)
+            return "--cookies-from-browser chrome";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao tentar extrair cookies do navegador");
+        }
+        
         _logger.LogWarning("Arquivo de cookies não encontrado em nenhum dos caminhos: {Paths}. Prosseguindo sem cookies.", string.Join(", ", possiblePaths));
         return string.Empty;
     }

@@ -6,8 +6,8 @@ public class DownloadCleanupService : BackgroundService
 {
     private readonly ILogger<DownloadCleanupService> _logger;
     private readonly string _downloadsPath;
-    private readonly TimeSpan _scanInterval = TimeSpan.FromMinutes(2);
-    private readonly TimeSpan _expireAfter = TimeSpan.FromMinutes(2);
+    private readonly TimeSpan _scanInterval = TimeSpan.FromMinutes(5);
+    private readonly TimeSpan _expireAfter = TimeSpan.FromMinutes(5);
 
     public DownloadCleanupService(ILogger<DownloadCleanupService> logger, IWebHostEnvironment env)
     {

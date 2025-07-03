@@ -60,9 +60,9 @@ public class ProcessRunner : IProcessRunner
         {
             failureReason = "Muitas requisições - YouTube está limitando o acesso. Tente novamente em alguns minutos.";
         }
-        else if (error.Contains("Sign in to confirm you're not a bot"))
+        else if (error.Contains("Sign in to confirm you're not a bot") || error.Contains("Use --cookies-from-browser"))
         {
-            failureReason = "YouTube requer autenticação. Cookies de navegador necessários.";
+            failureReason = "YouTube requer autenticação. Configure cookies do navegador ou use um serviço proxy.";
         }
         else if (error.Contains("Video unavailable"))
         {
@@ -75,6 +75,10 @@ public class ProcessRunner : IProcessRunner
         else if (error.Contains("This video is not available"))
         {
             failureReason = "Vídeo não disponível na sua região.";
+        }
+        else if (error.Contains("Requested format is not available"))
+        {
+            failureReason = "Formato solicitado não está disponível para este vídeo.";
         }
 
         string? downloadedFilePath = TryGetDownloadedFilePath(uniqueSubfolder);
@@ -104,6 +108,11 @@ public class ProcessRunner : IProcessRunner
             baseArgs.Add(cookiesArg.Trim());
         }
         
+        // Argumentos essenciais para evitar detecção de bot
+        baseArgs.Add("--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\"");
+        baseArgs.Add("--extractor-args \"youtube:player_client=android\"");
+        baseArgs.Add("--add-header \"Accept-Language:en-US,en;q=0.9\"");
+        
         // Adicionar argumentos para evitar rate limiting
         baseArgs.Add("--sleep-interval 1");
         baseArgs.Add("--max-sleep-interval 5");
@@ -112,19 +121,20 @@ public class ProcessRunner : IProcessRunner
         baseArgs.Add("--fragment-retries 3");
         baseArgs.Add("--retry-sleep linear=1::2");
         
-        // Adicionar User-Agent para evitar detecção de bot
-        baseArgs.Add("--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36\"");
-        
+        // Configurações de formato específicas
         if (format == "mp3")
         {
             baseArgs.Add("--extract-audio");
             baseArgs.Add("--audio-format mp3");
             baseArgs.Add("--audio-quality 0"); // Melhor qualidade de áudio
+            baseArgs.Add("--embed-metadata");
         }
         else
         {
-            // Usar formato melhorado ao invés de "-f best"
-            baseArgs.Add("-f \"bestvideo[height<=720]+bestaudio/best[height<=720]\"");
+            // Priorizar mp4 e evitar webm
+            baseArgs.Add("-f \"best[ext=mp4][height<=720]/bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[height<=720]\"");
+            baseArgs.Add("--merge-output-format mp4");
+            baseArgs.Add("--embed-metadata");
         }
         
         baseArgs.Add($"-o \"{outputTemplate}\"");
@@ -305,7 +315,169 @@ public class ProcessRunner : IProcessRunner
             error.Contains("HTTP Error 429") ||
             error.Contains("Too Many Requests") ||
             error.Contains("rate limit") ||
-            error.Contains("Sign in to confirm you're not a bot")
+            error.Contains("Sign in to confirm you're not a bot") ||
+            error.Contains("Use --cookies-from-browser") ||
+            error.Contains("HTTP Error 403") ||
+            error.Contains("blocked")
+        );
+    }
+
+    public async Task<YtDlpResponseDto> RunYtDlpWithFallbackStrategiesAsync(string url, string outputTemplate, string uniqueSubfolder, string executPath, string format = "mp4", string? cookiesArg = null)
+    {
+        // Estratégia 1: Tentar com cookies (se disponível)
+        var result = await RunYtDlpWithRetryAsync(url, outputTemplate, uniqueSubfolder, executPath, format, cookiesArg);
+        
+        if (result.Success)
+        {
+            return result;
+        }
+
+        // Se falhou devido a problemas de autenticação, tentar estratégias alternativas
+        if (IsAuthenticationError(result.Error))
+        {
+            _logger.LogWarning("Falha de autenticação detectada. Tentando estratégias alternativas...");
+
+            // Estratégia 2: Tentar extrair cookies do navegador automaticamente
+            if (string.IsNullOrEmpty(cookiesArg))
+            {
+                _logger.LogInformation("Tentando extrair cookies do navegador automaticamente...");
+                var browserCookiesArg = "--cookies-from-browser chrome";
+                result = await RunYtDlpWithRetryAsync(url, outputTemplate, uniqueSubfolder, executPath, format, browserCookiesArg);
+                
+                if (result.Success)
+                {
+                    return result;
+                }
+            }
+
+            // Estratégia 3: Usar player client alternativo (android)
+            _logger.LogInformation("Tentando com configurações alternativas de player...");
+            var alternativeResult = await RunYtDlpWithAlternativePlayerAsync(url, outputTemplate, uniqueSubfolder, executPath, format);
+            
+            if (alternativeResult.Success)
+            {
+                return alternativeResult;
+            }
+
+            // Estratégia 4: Tentar com formato mais simples
+            if (format != "mp3")
+            {
+                _logger.LogInformation("Tentando download com formato mais simples...");
+                var simpleResult = await RunYtDlpWithSimpleFormatAsync(url, outputTemplate, uniqueSubfolder, executPath, format);
+                
+                if (simpleResult.Success)
+                {
+                    return simpleResult;
+                }
+            }
+        }
+
+        // Se todas as estratégias falharam, retornar o resultado original com mensagem melhorada
+        result.FailureReason = "Todas as estratégias de download falharam. Verifique se os cookies estão configurados corretamente ou se o vídeo está disponível.";
+        return result;
+    }
+
+    private async Task<YtDlpResponseDto> RunYtDlpWithAlternativePlayerAsync(string url, string outputTemplate, string uniqueSubfolder, string executPath, string format)
+    {
+        var baseArgs = new List<string>
+        {
+            "--extractor-args \"youtube:player_client=android,web\"",
+            "--user-agent \"Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36\"",
+            "--sleep-interval 2",
+            "--max-sleep-interval 8",
+            "--retries 2"
+        };
+
+        if (format == "mp3")
+        {
+            baseArgs.Add("--extract-audio");
+            baseArgs.Add("--audio-format mp3");
+            baseArgs.Add("--audio-quality 0");
+        }
+        else
+        {
+            baseArgs.Add("-f \"worst[height<=480]/worst\"");
+        }
+
+        baseArgs.Add($"-o \"{outputTemplate}\"");
+        baseArgs.Add($"\"{url}\"");
+
+        var args = string.Join(" ", baseArgs);
+        var psi = BuildProcessStartInfo(executPath, args);
+        var (output, error, processStartError) = await RunProcessAsync(psi);
+
+        if (processStartError != null)
+        {
+            return new YtDlpResponseDto
+            {
+                Message = "Falha ao iniciar processo alternativo",
+                Success = false,
+                Error = processStartError
+            };
+        }
+
+        bool hasError = error.Contains("ERROR:");
+        string? downloadedFilePath = TryGetDownloadedFilePath(uniqueSubfolder);
+        string relativePath = BuildRelativePath(downloadedFilePath);
+
+        return new YtDlpResponseDto
+        {
+            Message = hasError ? "Falha no processamento alternativo" : "Download alternativo concluído",
+            FilePath = relativePath,
+            Error = error,
+            Success = !hasError,
+            HasWarnings = error.Contains("WARNING:")
+        };
+    }
+
+    private async Task<YtDlpResponseDto> RunYtDlpWithSimpleFormatAsync(string url, string outputTemplate, string uniqueSubfolder, string executPath, string format)
+    {
+        var baseArgs = new List<string>
+        {
+            "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\"",
+            "--sleep-interval 3",
+            "--retries 1",
+            "-f \"worst/best\"", // Formato mais simples
+            $"-o \"{outputTemplate}\"",
+            $"\"{url}\""
+        };
+
+        var args = string.Join(" ", baseArgs);
+        var psi = BuildProcessStartInfo(executPath, args);
+        var (output, error, processStartError) = await RunProcessAsync(psi);
+
+        if (processStartError != null)
+        {
+            return new YtDlpResponseDto
+            {
+                Message = "Falha ao iniciar processo simples",
+                Success = false,
+                Error = processStartError
+            };
+        }
+
+        bool hasError = error.Contains("ERROR:");
+        string? downloadedFilePath = TryGetDownloadedFilePath(uniqueSubfolder);
+        string relativePath = BuildRelativePath(downloadedFilePath);
+
+        return new YtDlpResponseDto
+        {
+            Message = hasError ? "Falha no processamento simples" : "Download simples concluído",
+            FilePath = relativePath,
+            Error = error,
+            Success = !hasError,
+            HasWarnings = error.Contains("WARNING:")
+        };
+    }
+
+    private bool IsAuthenticationError(string error)
+    {
+        return !string.IsNullOrEmpty(error) && (
+            error.Contains("Sign in to confirm you're not a bot") ||
+            error.Contains("Use --cookies-from-browser") ||
+            error.Contains("HTTP Error 403") ||
+            error.Contains("blocked") ||
+            error.Contains("Forbidden")
         );
     }
 }
