@@ -108,6 +108,10 @@ public class ProcessRunner : IProcessRunner
             baseArgs.Add(cookiesArg.Trim());
         }
         
+        // Argumentos para baixar APENAS UM vídeo (não playlist)
+        baseArgs.Add("--no-playlist");
+        baseArgs.Add("--playlist-items 1");
+        
         // Argumentos essenciais para evitar detecção de bot
         baseArgs.Add("--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\"");
         baseArgs.Add("--extractor-args \"youtube:player_client=android\"");
@@ -324,30 +328,50 @@ public class ProcessRunner : IProcessRunner
 
     public async Task<YtDlpResponseDto> RunYtDlpWithFallbackStrategiesAsync(string url, string outputTemplate, string uniqueSubfolder, string executPath, string format = "mp4", string? cookiesArg = null)
     {
+        _logger.LogInformation("Iniciando download com estratégias de fallback. Cookies disponíveis: {HasCookies}", !string.IsNullOrEmpty(cookiesArg));
+        
         // Estratégia 1: Tentar com cookies (se disponível)
         var result = await RunYtDlpWithRetryAsync(url, outputTemplate, uniqueSubfolder, executPath, format, cookiesArg);
         
         if (result.Success)
         {
+            _logger.LogInformation("Download bem-sucedido na primeira tentativa");
             return result;
         }
+
+        _logger.LogWarning("Primeira tentativa falhou: {Error}", result.Error);
 
         // Se falhou devido a problemas de autenticação, tentar estratégias alternativas
         if (IsAuthenticationError(result.Error))
         {
             _logger.LogWarning("Falha de autenticação detectada. Tentando estratégias alternativas...");
 
-            // Estratégia 2: Tentar extrair cookies do navegador automaticamente
+            // Estratégia 2: Apenas tenta extração automática se NÃO há cookies configurados
             if (string.IsNullOrEmpty(cookiesArg))
             {
                 _logger.LogInformation("Tentando extrair cookies do navegador automaticamente...");
-                var browserCookiesArg = "--cookies-from-browser chrome";
-                result = await RunYtDlpWithRetryAsync(url, outputTemplate, uniqueSubfolder, executPath, format, browserCookiesArg);
                 
-                if (result.Success)
+                // Verificar se existe o diretório do Chrome antes de tentar
+                var chromeConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "google-chrome");
+                if (Directory.Exists(chromeConfigPath))
                 {
-                    return result;
+                    var browserCookiesArg = "--cookies-from-browser chrome";
+                    result = await RunYtDlpWithRetryAsync(url, outputTemplate, uniqueSubfolder, executPath, format, browserCookiesArg);
+                    
+                    if (result.Success)
+                    {
+                        _logger.LogInformation("Download bem-sucedido com cookies do navegador");
+                        return result;
+                    }
                 }
+                else
+                {
+                    _logger.LogWarning("Chrome não encontrado no sistema. Pulando extração automática de cookies.");
+                }
+            }
+            else
+            {
+                _logger.LogInformation("Cookies já configurados. Pulando extração automática.");
             }
 
             // Estratégia 3: Usar player client alternativo (android)
@@ -356,6 +380,7 @@ public class ProcessRunner : IProcessRunner
             
             if (alternativeResult.Success)
             {
+                _logger.LogInformation("Download bem-sucedido com player alternativo");
                 return alternativeResult;
             }
 
@@ -367,13 +392,19 @@ public class ProcessRunner : IProcessRunner
                 
                 if (simpleResult.Success)
                 {
+                    _logger.LogInformation("Download bem-sucedido com formato simples");
                     return simpleResult;
                 }
             }
         }
+        else
+        {
+            _logger.LogWarning("Erro não relacionado à autenticação: {Error}", result.Error);
+        }
 
         // Se todas as estratégias falharam, retornar o resultado original com mensagem melhorada
-        result.FailureReason = "Todas as estratégias de download falharam. Verifique se os cookies estão configurados corretamente ou se o vídeo está disponível.";
+        result.FailureReason = GetDetailedFailureReason(result.Error, !string.IsNullOrEmpty(cookiesArg));
+        _logger.LogError("Todas as estratégias falharam. Motivo: {FailureReason}", result.FailureReason);
         return result;
     }
 
@@ -381,6 +412,8 @@ public class ProcessRunner : IProcessRunner
     {
         var baseArgs = new List<string>
         {
+            "--no-playlist",
+            "--playlist-items 1",
             "--extractor-args \"youtube:player_client=android,web\"",
             "--user-agent \"Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36\"",
             "--sleep-interval 2",
@@ -434,6 +467,8 @@ public class ProcessRunner : IProcessRunner
     {
         var baseArgs = new List<string>
         {
+            "--no-playlist",
+            "--playlist-items 1",
             "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\"",
             "--sleep-interval 3",
             "--retries 1",
@@ -479,6 +514,50 @@ public class ProcessRunner : IProcessRunner
             error.Contains("blocked") ||
             error.Contains("Forbidden")
         );
+    }
+
+    private string GetDetailedFailureReason(string error, bool hasCookies)
+    {
+        if (string.IsNullOrEmpty(error))
+        {
+            return "Erro desconhecido durante o download.";
+        }
+
+        if (error.Contains("could not find chrome cookies database"))
+        {
+            return hasCookies 
+                ? "Falha na extração automática de cookies do Chrome, mas cookies manuais estão disponíveis. Verifique se os cookies não expiraram."
+                : "Chrome não encontrado no sistema. Configure cookies manualmente ou instale o Chrome.";
+        }
+
+        if (error.Contains("Sign in to confirm you're not a bot"))
+        {
+            return hasCookies 
+                ? "YouTube detectou atividade de bot mesmo com cookies. Os cookies podem ter expirado ou serem inválidos."
+                : "YouTube requer autenticação. Configure cookies do navegador.";
+        }
+
+        if (error.Contains("HTTP Error 429"))
+        {
+            return "YouTube está limitando requisições. Aguarde alguns minutos antes de tentar novamente.";
+        }
+
+        if (error.Contains("Video unavailable"))
+        {
+            return "Vídeo não está disponível ou foi removido.";
+        }
+
+        if (error.Contains("Private video"))
+        {
+            return "Vídeo é privado e requer permissão especial.";
+        }
+
+        if (error.Contains("This video is not available"))
+        {
+            return "Vídeo não disponível na sua região.";
+        }
+
+        return $"Falha no download: {error.Split('\n').FirstOrDefault()?.Trim() ?? "Erro desconhecido"}";
     }
 }
 
