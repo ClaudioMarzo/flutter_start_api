@@ -50,6 +50,13 @@ public class ProcessRunner : IProcessRunner
         bool hasWarning = error.Contains("WARNING:");
         string? redirectedUrl = ExtractRedirectedUrl(output);
         
+        // Detectar erros relacionados a argumentos inválidos
+        if (error.Contains("error: no such option:") || error.Contains("unrecognized arguments:"))
+        {
+            hasError = true;
+            _logger.LogError("Erro de argumento inválido detectado: {Error}", error);
+        }
+        
         // Detectar diferentes tipos de falhas
         string? failureReason = null;
         if (error.Contains("Filename too long"))
@@ -80,18 +87,33 @@ public class ProcessRunner : IProcessRunner
         {
             failureReason = "Formato solicitado não está disponível para este vídeo.";
         }
+        else if (error.Contains("error: no such option:"))
+        {
+            failureReason = "Versão do yt-dlp incompatível com alguns argumentos usados.";
+        }
 
         string? downloadedFilePath = TryGetDownloadedFilePath(uniqueSubfolder);
         string relativePath = BuildRelativePath(downloadedFilePath);
 
         _logger.LogInformation("Arquivo baixado localizado: {DownloadedFilePath}, caminho relativo: {RelativePath}", downloadedFilePath, relativePath);
 
+        // Validar se o arquivo realmente foi baixado
+        bool fileExists = !string.IsNullOrEmpty(downloadedFilePath) && File.Exists(downloadedFilePath);
+        
+        // Se não há erro reportado mas também não há arquivo, considerar erro
+        if (!hasError && !fileExists)
+        {
+            hasError = true;
+            failureReason = "Arquivo não foi baixado apesar do processo ter finalizado com sucesso.";
+            _logger.LogError("Arquivo não encontrado após download aparentemente bem-sucedido. Path: {Path}", uniqueSubfolder);
+        }
+
         return new YtDlpResponseDto
         {
             Message = hasError ? "Falha no processamento" : "Processamento finalizado",
             FilePath = relativePath,
             Error = error,
-            Success = !hasError,
+            Success = !hasError && fileExists, // Garantir que o arquivo exista
             HasWarnings = hasWarning,
             RedirectedUrl = redirectedUrl,
             FailureReason = failureReason,
@@ -114,13 +136,11 @@ public class ProcessRunner : IProcessRunner
         
         // Argumentos essenciais para evitar detecção de bot
         baseArgs.Add("--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\"");
-        baseArgs.Add("--extractor-args \"youtube:player_client=android\"");
         baseArgs.Add("--add-header \"Accept-Language:en-US,en;q=0.9\"");
         
         // Adicionar argumentos para evitar rate limiting
         baseArgs.Add("--sleep-interval 1");
         baseArgs.Add("--max-sleep-interval 5");
-        baseArgs.Add("--sleep-subtitles 1");
         baseArgs.Add("--retries 3");
         baseArgs.Add("--fragment-retries 3");
         baseArgs.Add("--retry-sleep linear=1::2");
@@ -131,13 +151,24 @@ public class ProcessRunner : IProcessRunner
             baseArgs.Add("--extract-audio");
             baseArgs.Add("--audio-format mp3");
             baseArgs.Add("--audio-quality 0"); // Melhor qualidade de áudio
+            baseArgs.Add("--prefer-ffmpeg");
             baseArgs.Add("--embed-metadata");
         }
         else
         {
-            // Priorizar mp4 e evitar webm
-            baseArgs.Add("-f \"best[ext=mp4][height<=720]/bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[height<=720]\"");
+            // Estratégia melhorada para garantir vídeo MP4 com áudio
+            
+            // Abordagem 1: Especificar formatos específicos com áudio integrado
+            // Formatos comuns com áudio integrado: 18=360p, 22=720p, etc.
+            baseArgs.Add("-f \"22/18/best[ext=mp4][acodec!=none]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best\"");
+            
+            // Garantir que o formato final seja MP4
             baseArgs.Add("--merge-output-format mp4");
+            
+            // Usar FFmpeg para processamento
+            baseArgs.Add("--prefer-ffmpeg");
+            baseArgs.Add("--postprocessor-args \"-c:v copy -c:a aac -strict experimental\"");
+            baseArgs.Add("--force-overwrites");
             baseArgs.Add("--embed-metadata");
         }
         
@@ -237,18 +268,43 @@ public class ProcessRunner : IProcessRunner
                 {
                     var files = Directory.GetFiles(uniqueSubfolder, "*", SearchOption.AllDirectories);
                     
-                    // Filtrar arquivos temporários
+                    // Filtrar arquivos temporários e muito pequenos (que podem estar corrompidos)
                     var validFiles = files.Where(f => 
                         !Path.GetFileName(f).StartsWith(".") &&
                         !f.EndsWith(".part") &&
                         !f.EndsWith(".tmp") &&
-                        !f.EndsWith(".ytdl")
+                        !f.EndsWith(".ytdl") &&
+                        new FileInfo(f).Length > 10000  // Garantir que o arquivo tenha pelo menos 10KB
                     ).ToArray();
                     
                     if (validFiles.Length > 0)
                     {
                         var latestFile = validFiles.OrderByDescending(f => File.GetLastWriteTimeUtc(f)).First();
-                        _logger.LogInformation("Arquivo encontrado: {FilePath}", latestFile);
+                        var fileSize = new FileInfo(latestFile).Length;
+                        _logger.LogInformation("Arquivo encontrado: {FilePath} ({Size:N0} bytes)", latestFile, fileSize);
+                        
+                        // Para arquivos MP4, verificar se tem áudio
+                        if (Path.GetExtension(latestFile).ToLower() == ".mp4")
+                        {
+                            var audioIssue = CheckVideoHasAudio(latestFile);
+                            if (audioIssue != null)
+                            {
+                                _logger.LogWarning("Problema com áudio detectado: {Issue}", audioIssue);
+                                
+                                // Se estamos na última tentativa e o arquivo não tem áudio, tentar converter com FFmpeg
+                                if (attempt == 4 && fileSize > 100000)
+                                {
+                                    _logger.LogInformation("Tentando adicionar áudio ao vídeo com FFmpeg...");
+                                    var fixedFile = TryFixVideoWithoutAudio(latestFile);
+                                    if (!string.IsNullOrEmpty(fixedFile))
+                                    {
+                                        _logger.LogInformation("Vídeo corrigido com FFmpeg: {FilePath}", fixedFile);
+                                        return fixedFile;
+                                    }
+                                }
+                            }
+                        }
+                        
                         return latestFile;
                     }
                     
@@ -426,10 +482,16 @@ public class ProcessRunner : IProcessRunner
             baseArgs.Add("--extract-audio");
             baseArgs.Add("--audio-format mp3");
             baseArgs.Add("--audio-quality 0");
+            baseArgs.Add("--prefer-ffmpeg");
         }
         else
         {
-            baseArgs.Add("-f \"worst[height<=480]/worst\"");
+            // Usar formato que garante áudio
+            baseArgs.Add("-f \"22/18/best[ext=mp4][acodec!=none]\"");
+            baseArgs.Add("--merge-output-format mp4");
+            baseArgs.Add("--prefer-ffmpeg");
+            baseArgs.Add("--postprocessor-args \"-c:v copy -c:a aac\"");
+            baseArgs.Add("--force-overwrites");
         }
 
         baseArgs.Add($"-o \"{outputTemplate}\"");
@@ -452,32 +514,34 @@ public class ProcessRunner : IProcessRunner
         bool hasError = error.Contains("ERROR:");
         string? downloadedFilePath = TryGetDownloadedFilePath(uniqueSubfolder);
         string relativePath = BuildRelativePath(downloadedFilePath);
+        
+        // Verificar se o arquivo existe
+        bool fileExists = !string.IsNullOrEmpty(downloadedFilePath) && File.Exists(downloadedFilePath);
 
         return new YtDlpResponseDto
         {
             Message = hasError ? "Falha no processamento alternativo" : "Download alternativo concluído",
             FilePath = relativePath,
             Error = error,
-            Success = !hasError,
+            Success = !hasError && fileExists,
             HasWarnings = error.Contains("WARNING:")
         };
     }
 
     private async Task<YtDlpResponseDto> RunYtDlpWithSimpleFormatAsync(string url, string outputTemplate, string uniqueSubfolder, string executPath, string format)
     {
-        var baseArgs = new List<string>
+        // Comando mais simples possível, sem opções complexas
+        string args;
+        if (format == "mp3")
         {
-            "--no-playlist",
-            "--playlist-items 1",
-            "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\"",
-            "--sleep-interval 3",
-            "--retries 1",
-            "-f \"worst/best\"", // Formato mais simples
-            $"-o \"{outputTemplate}\"",
-            $"\"{url}\""
-        };
+            args = $"--no-playlist --extract-audio --audio-format mp3 --audio-quality 0 --prefer-ffmpeg -o \"{outputTemplate}\" \"{url}\"";
+        }
+        else
+        {
+            // Abordagem mais simples, mas ainda garantindo áudio
+            args = $"--no-playlist -f \"22/18/best[ext=mp4][acodec!=none]\" --merge-output-format mp4 --prefer-ffmpeg -o \"{outputTemplate}\" \"{url}\"";
+        }
 
-        var args = string.Join(" ", baseArgs);
         var psi = BuildProcessStartInfo(executPath, args);
         var (output, error, processStartError) = await RunProcessAsync(psi);
 
@@ -494,13 +558,16 @@ public class ProcessRunner : IProcessRunner
         bool hasError = error.Contains("ERROR:");
         string? downloadedFilePath = TryGetDownloadedFilePath(uniqueSubfolder);
         string relativePath = BuildRelativePath(downloadedFilePath);
+        
+        // Verificar se o arquivo existe
+        bool fileExists = !string.IsNullOrEmpty(downloadedFilePath) && File.Exists(downloadedFilePath);
 
         return new YtDlpResponseDto
         {
             Message = hasError ? "Falha no processamento simples" : "Download simples concluído",
             FilePath = relativePath,
             Error = error,
-            Success = !hasError,
+            Success = !hasError && fileExists,
             HasWarnings = error.Contains("WARNING:")
         };
     }
@@ -558,6 +625,119 @@ public class ProcessRunner : IProcessRunner
         }
 
         return $"Falha no download: {error.Split('\n').FirstOrDefault()?.Trim() ?? "Erro desconhecido"}";
+    }
+
+    private string? CheckVideoHasAudio(string filePath)
+    {
+        try
+        {
+            // Verificar se o arquivo existe
+            if (!File.Exists(filePath))
+            {
+                return "Arquivo não encontrado";
+            }
+
+            // Verificar se o arquivo é muito pequeno (provavelmente não tem áudio ou está corrompido)
+            var fileInfo = new FileInfo(filePath);
+            if (fileInfo.Length < 100000) // 100KB
+            {
+                return $"Arquivo muito pequeno ({fileInfo.Length} bytes), pode estar sem áudio ou corrompido";
+            }
+
+            // Se estiver disponível, usar ffprobe para verificar streams de áudio
+            // Essa é uma verificação opcional, só funciona se o ffprobe estiver instalado
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "ffprobe",
+                    Arguments = $"-v error -select_streams a -show_entries stream=codec_type -of default=nw=1 \"{filePath}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var process = Process.Start(psi);
+                if (process != null)
+                {
+                    var output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+                    
+                    if (string.IsNullOrEmpty(output) || !output.Contains("codec_type=audio"))
+                    {
+                        return "Nenhuma stream de áudio detectada no arquivo";
+                    }
+                }
+            }
+            catch
+            {
+                // Ignorar erros do ffprobe (pode não estar instalado)
+                _logger.LogInformation("ffprobe não disponível para verificar áudio no vídeo");
+            }
+
+            return null; // Nenhum problema detectado
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao verificar se o vídeo tem áudio: {FilePath}", filePath);
+            return "Erro ao verificar o arquivo de vídeo";
+        }
+    }
+
+    private string? TryFixVideoWithoutAudio(string videoPath)
+    {
+        try
+        {
+            // Criar um nome para o arquivo de saída
+            var directory = Path.GetDirectoryName(videoPath);
+            var filename = Path.GetFileNameWithoutExtension(videoPath);
+            var extension = Path.GetExtension(videoPath);
+            var outputPath = Path.Combine(directory!, $"{filename}_fixed{extension}");
+            
+            _logger.LogInformation("Tentando corrigir vídeo sem áudio: {Input} -> {Output}", videoPath, outputPath);
+            
+            // Usar FFmpeg para adicionar uma faixa de áudio silenciosa
+            var psi = new ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                // Criar uma faixa de áudio silenciosa e combiná-la com o vídeo
+                Arguments = $"-i \"{videoPath}\" -f lavfi -i anullsrc=r=44100:cl=stereo -c:v copy -c:a aac -shortest -map 0:v:0 -map 1:a:0 \"{outputPath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            
+            using var process = Process.Start(psi);
+            if (process == null)
+            {
+                _logger.LogError("Falha ao iniciar processo FFmpeg");
+                return null;
+            }
+            
+            process.WaitForExit(30000); // 30 segundos de timeout
+            
+            if (process.ExitCode != 0)
+            {
+                _logger.LogError("FFmpeg retornou erro: {ExitCode}", process.ExitCode);
+                return null;
+            }
+            
+            if (File.Exists(outputPath) && new FileInfo(outputPath).Length > 10000)
+            {
+                _logger.LogInformation("Vídeo corrigido com sucesso");
+                return outputPath;
+            }
+            
+            _logger.LogWarning("Arquivo de saída não encontrado ou muito pequeno");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao tentar corrigir vídeo sem áudio");
+            return null;
+        }
     }
 }
 
